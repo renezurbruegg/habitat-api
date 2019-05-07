@@ -5,20 +5,30 @@
 # LICENSE file in the root directory of this source tree.
 
 import habitat
-
+import pickle
 
 def example():
+    observations_list=[]
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav.yaml"))
 
     print("Environment creation successful")
     observations = env.reset()
-
+    
     print("Agent stepping around inside environment.")
     count_steps = 0
     while not env.episode_over:
         observations = env.step(env.action_space.sample())
+        observations_list.append(observations)
         count_steps += 1
     print("Episode finished after {} steps.".format(count_steps))
+    
+    #for determining what observation and action spaces are
+    print("The action space is: ", env.action_space)
+    print("The observation space is: ", env.observation_space)
+    pickle_out = open("from_example_dot_py.pickle", "wb")
+    pickle.dump(observations_list,pickle_out)
+    pickle_out.close()
+    print("pickle was saved")
 
 
 if __name__ == "__main__":
