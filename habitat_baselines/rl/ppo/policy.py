@@ -24,6 +24,7 @@ class Policy(nn.Module):
         self.action_distribution = CategoricalNet(
             self.net.output_size, self.dim_actions
         )
+        print("This is the action space: ",action_space, " with type", type(action_space))
 
     def forward(self, *x):
         raise NotImplementedError

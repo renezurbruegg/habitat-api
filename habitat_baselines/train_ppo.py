@@ -19,6 +19,7 @@ from config.default import get_config as cfg_baseline
 from habitat.datasets.pointnav.pointnav_dataset import PointNavDatasetV1
 from rl.ppo import PPO, Policy, RolloutStorage
 from rl.ppo.utils import update_linear_schedule, ppo_args, batch_obs
+import pickle
 
 
 class NavRLEnv(habitat.RLEnv):
@@ -214,6 +215,7 @@ def main():
     for sensor in rollouts.observations:
         rollouts.observations[sensor][0].copy_(batch[sensor])
     rollouts.to(device)
+    
 
     episode_rewards = torch.zeros(envs.num_envs, 1)
     episode_counts = torch.zeros(envs.num_envs, 1)
@@ -358,6 +360,11 @@ def main():
                 ),
             )
             count_checkpoints += 1
+    bar=[sensor,rollouts,batch]
+    pickle_out = open("sensor_ou1.pickle", "wb")
+    pickle.dump(bar,pickle_out)
+    pickle_out.close()
+    print("pickle was saved")
 
 
 if __name__ == "__main__":
