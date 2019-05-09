@@ -25,7 +25,7 @@ def example():
     #for determining what observation and action spaces are
     print("The action space is: ", env.action_space)
     print("The observation space is: ", env.observation_space)
-    pickle_out = open("from_example_dot_py.pickle", "wb")
+    pickle_out = open("./examples/from_example_dot_py.pickle", "wb")
     pickle.dump(observations_list,pickle_out)
     pickle_out.close()
     print("pickle was saved")
