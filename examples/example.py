@@ -57,16 +57,9 @@ def example():
         #env._sim._sim.agents[0].scene_node.translate_local(ax * 0.8)
         #observations = env.step(3)
         
-        #update_position(-1,0,1)
-        update_attitude(0,0,30,1)
-
-        #ax = np.zeros(3, dtype=np.float32)
-        #ax[_y_axis] = 1
-
-        #env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(30), ax)
-        #env._sim._sim.agents[0].scene_node.normalize()
-
-
+        update_position(-1,0,1)
+        #update_attitude(0,0,30,1)
+   
         sim_obs=env._sim._sim.get_sensor_observations()
         observations = env._sim._sensor_suite.get_observations(sim_obs)
 
@@ -77,8 +70,9 @@ def example():
         plt.show()
         
         count_steps += 1
+        
     
-        #print(count_steps)
+    
 
     print("Episode finished after {} steps.".format(count_steps))
     
