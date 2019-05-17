@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 
 def example():
-    observations_list=[]
-    env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav.yaml"))
+    #env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav.yaml"))
+    env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
 
     print("Environment creation successful")
     observations = env.reset()
@@ -21,23 +21,25 @@ def example():
     while not env.episode_over:
         #observations = env.step(env.action_space.sample())
 
-        observations = env.step(0)
+
+
+        #ax=env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, 2]
+        #env._sim._sim.agents[0].scene_node.translate_local(ax * 0.05)
+        ax=env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, 0]
+        env._sim._sim.agents[0].scene_node.translate_local(ax * 0.8)
+        
+        
+
+        #observations = env.step(3)
+        sim_obs=env._sim._sim.get_sensor_observations()
+        observations = env._sim._sensor_suite.get_observations(sim_obs)
         plt.imshow(observations['rgb'])
         plt.show()
-        ax=env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, 2]
-        env._sim._sim.agents[0].scene_node.translate_local(ax * 10)
 
-        observations_list.append(observations)
         count_steps += 1
     print("Episode finished after {} steps.".format(count_steps))
     
     #for determining what observation and action spaces are
-    print("The action space is: ", env.action_space)
-    print("The observation space is: ", env.observation_space)
-    pickle_out = open("./examples/from_example_dot_py.pickle", "wb")
-    pickle.dump(observations_list,pickle_out)
-    pickle_out.close()
-    print("pickle was saved")
 
 
 if __name__ == "__main__":
