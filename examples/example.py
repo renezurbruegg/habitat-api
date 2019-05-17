@@ -49,8 +49,6 @@ def example():
         env._sim._sim.agents[0].scene_node.normalize()
 
 
-
-        
     
     while not env.episode_over:
         #observations = env.step(env.action_space.sample())
@@ -71,9 +69,16 @@ def example():
 
         sim_obs=env._sim._sim.get_sensor_observations()
         observations = env._sim._sensor_suite.get_observations(sim_obs)
+
+        plt.imshow(observations['depth'][:,:,0])
+        plt.show()
+
         plt.imshow(observations['rgb'])
         plt.show()
+        
         count_steps += 1
+    
+        #print(count_steps)
 
     print("Episode finished after {} steps.".format(count_steps))
     
