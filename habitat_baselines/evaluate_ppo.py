@@ -15,11 +15,9 @@ from config.default import get_config as cfg_baseline
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
-import pickle
 
 
 def main():
-    to_export_batch=[]
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
     parser.add_argument("--sim-gpu-id", type=int, required=True)
@@ -42,7 +40,6 @@ def main():
         help="path to config yaml containing information about task",
     )
     args = parser.parse_args()
-
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
@@ -104,13 +101,6 @@ def main():
     batch = batch_obs(observations)
     for sensor in batch:
         batch[sensor] = batch[sensor].to(device)
-        print("sensor value in batch is: " ,sensor)
-        print("batch[sensor] is: " ,batch[sensor])
-        print("batch[sensor].to(device) is:" ,batch[sensor].to(device))
-
-    
-
-        
 
     episode_rewards = torch.zeros(envs.num_envs, 1, device=device)
     episode_spls = torch.zeros(envs.num_envs, 1, device=device)
@@ -133,8 +123,6 @@ def main():
             )
 
         outputs = envs.step([a[0].item() for a in actions])
-        print("actions is", actions)
-        print("type of action is", actions)
 
         observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
         batch = batch_obs(observations)
@@ -146,7 +134,6 @@ def main():
             dtype=torch.float,
             device=device,
         )
-        to_export_batch.append(batch)
 
         for i in range(not_done_masks.shape[0]):
             if not_done_masks[i].item() == 0:
@@ -169,12 +156,7 @@ def main():
     print("Average episode reward: {:.6f}".format(episode_reward_mean))
     print("Average episode success: {:.6f}".format(episode_success_mean))
     print("Average episode spl: {:.6f}".format(episode_spl_mean))
-    
-    bar=[sensor,batch[sensor],batch,to_export_batch,actions]
-    pickle_out = open("from_evaluate.pickle", "wb")
-    pickle.dump(bar,pickle_out)
-    pickle_out.close()
-    print("pickle was saved")
+
 
 if __name__ == "__main__":
     main()
