@@ -24,6 +24,7 @@ def example():
     _z_axis = 2
 
     def update_position(vz, vx, dt):
+        """ update agent position in xz plane given velocity and delta time"""
         ax = env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, _z_axis]
         env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
 
@@ -31,7 +32,7 @@ def example():
         env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
 
     def update_attitude(roll, pitch, yaw, dt):
-
+        """ update agent orientation given angular velocity and delta time"""
         ax_roll = np.zeros(3, dtype=np.float32)
         ax_roll[_z_axis] = 1
         env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(roll * dt), ax_roll)
