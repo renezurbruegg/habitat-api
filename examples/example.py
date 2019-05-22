@@ -61,12 +61,12 @@ def example():
         env._sim._sim.agents[0].scene_node.normalize()
 
     pub = rospy.Publisher('floats', numpy_msg(Floats),queue_size=10)
-    rospy.init_node('talker', anonymous=True)
+    rospy.init_node('habitat_plant_model', anonymous=True)
     r = rospy.Rate(10) # 10hz
 
     while not rospy.is_shutdown():
         while not env.episode_over:
-            pub.publish(a)
+            
             # update agent pose
             update_position(-1, 0, 1)
             # update_attitude(0, 0, 30, 1)
@@ -74,7 +74,9 @@ def example():
             # get observations (I think get_observations function is being developed by PR #80)
             sim_obs = env._sim._sim.get_sensor_observations()
             observations = env._sim._sensor_suite.get_observations(sim_obs)
-
+            
+            to_publish=np.float32(observations["rgb"].ravel())
+            pub.publish(np.float32(observations["rgb"].ravel()))
             # plot rgb and depth observation (can save/send np.array sensor output to ROS in the future)
             #plt.imshow(observations["depth"][:, :, 0])
             
@@ -83,6 +85,8 @@ def example():
  
 
             count_steps += 1
+            print(count_steps)
+            print(to_publish)
             r.sleep()
 
     print("Episode finished after {} steps.".format(count_steps))
