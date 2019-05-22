@@ -26,7 +26,7 @@ def example():
 
     def transform_callback(data):
         print (rospy.get_name(), "Plant heard %s"%str(data.data))
-        vel_zx=np.float32([-0.4,0.4])
+        vel_zx=data.data
         update_position(vel_zx[0],vel_zx[1],1)
         print("position updated")
         
@@ -71,25 +71,29 @@ def example():
         env._sim._sim.agents[0].scene_node.normalize()
 
     
-    while not rospy.is_shutdown():
-        while not env.episode_over:
-            
-            # update agent pose
-            #update_position(-1, 0, 1)
-         
-            # get observations (I think get_observations function is being developed by PR #80)
-            sim_obs = env._sim._sim.get_sensor_observations()
-            observations = env._sim._sensor_suite.get_observations(sim_obs)
-            
-            to_publish=np.float32(observations["rgb"].ravel())
+    #while not rospy.is_shutdown():
+    while not env.episode_over:
+        
+        # update agent pose
+        #update_position(-1, 0, 1)
+        
+        # get observations (I think get_observations function is being developed by PR #80)
+        sim_obs = env._sim._sim.get_sensor_observations()
+        observations = env._sim._sensor_suite.get_observations(sim_obs)
+        
+        to_publish=np.float32(observations["rgb"].ravel())
+        pub.publish(np.float32(observations["rgb"].ravel()))
+        # plot rgb and depth observation (can save/send np.array sensor output to ROS in the future)
+        #plt.imshow(observations["depth"][:, :, 0])
+        #plt.imshow(observations["rgb"])
+        count_steps += 1
+        print(count_steps)
+        print("Plant published the following:")
+        print(to_publish)
+        while not rospy.is_shutdown():
+    # do whatever you want here
             pub.publish(np.float32(observations["rgb"].ravel()))
-            # plot rgb and depth observation (can save/send np.array sensor output to ROS in the future)
-            #plt.imshow(observations["depth"][:, :, 0])
-            #plt.imshow(observations["rgb"])
-            count_steps += 1
-            print(count_steps)
-            #print(to_publish)
-            rospy.spin()
+            rospy.sleep(1)  # sleep for one second
 
     print("Episode finished after {} steps.".format(count_steps))
 
