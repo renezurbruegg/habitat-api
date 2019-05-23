@@ -19,9 +19,9 @@ def callback(data):
     #print("Entered call back function")
     print (rospy.get_name(), "received %s"%str(data.data))
     img = np.reshape(data.data,(256, 256, 3))
-
     plt.imsave('test'+str(count)+'.png', img.astype(np.uint8))
 
+    #update how many times call back ran
     count = count+1
 
     #do something (publish) the data received
@@ -35,7 +35,6 @@ def listener():
     rospy.init_node('controller_node')
     rospy.Subscriber("floats", numpy_msg(Floats), callback)
     print("subscriber called from listener")
-    #pub.publish(np.float32([0.97,0.830]))
     rospy.spin()
 
 if __name__ == '__main__':
