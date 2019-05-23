@@ -19,7 +19,7 @@ def callback(data):
     plt.imsave('test1.png', img.astype(np.uint8))
 
     #do something (publish) the data received
-    vel_zx=np.float32([-0.3,0.4])
+    vel_zx=np.float32([0.4,0.4])
     pub.publish(vel_zx)
     print("controller published" + str(vel_zx))
     #print(img.astype(np.uint8))
