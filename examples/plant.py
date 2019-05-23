@@ -92,10 +92,7 @@ def example():
             print(to_publish)
             pub.publish(np.float32(observations["rgb"].ravel()))
             rospy.sleep(1)  # sleep for one second
-        
-    # do whatever you want here
             
-
     print("Episode finished after {} steps.".format(count_steps))
 
 
