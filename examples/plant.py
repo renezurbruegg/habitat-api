@@ -19,7 +19,7 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 
-pub = rospy.Publisher('floats', numpy_msg(Floats),queue_size=10)
+pub = rospy.Publisher('rgb', numpy_msg(Floats),queue_size=10)
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))

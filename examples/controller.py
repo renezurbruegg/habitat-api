@@ -33,7 +33,7 @@ def callback(data):
 
 def listener():
     rospy.init_node('controller_node')
-    rospy.Subscriber("floats", numpy_msg(Floats), callback)
+    rospy.Subscriber("rgb", numpy_msg(Floats), callback)
     print("subscriber called from listener")
     rospy.spin()
 
