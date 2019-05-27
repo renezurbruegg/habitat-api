@@ -5,15 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 import sys 
 import os
-PKG = 'numpy_tutorial'
-import roslib; roslib.load_manifest(PKG)
-
-import rospy
-from rospy.numpy_msg import numpy_msg
-from rospy_tutorials.msg import Floats
-sys.path=[b for b in sys.path if "2.7" not in b]
-sys.path.insert(0,os.getcwd())
-
 import habitat
 import pickle
 import matplotlib.pyplot as plt
@@ -22,6 +13,9 @@ a=np.float32([1,2,3,4,5])
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
+    
+    #grab a pre-written filter funciton for the agent
+    env._sim._sim.agents[0].move_filter_fn = env._sim._sim._step_filter
 
     print("Environment creation successful")
     observations = env.reset()

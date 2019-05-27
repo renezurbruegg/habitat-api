@@ -12,7 +12,6 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-count=0
 pub = rospy.Publisher('linear_vel_command', numpy_msg(Floats),queue_size=10)
 # Author: Andrew Dai
 def callback(data):
