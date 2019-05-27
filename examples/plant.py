@@ -23,6 +23,8 @@ pub = rospy.Publisher('rgb', numpy_msg(Floats),queue_size=10)
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
+    #define filter function
+    env._sim._sim.agents[0].move_filter_fn = env._sim._sim._step_filter
 
     def transform_callback(data):
         print (rospy.get_name(), "Plant heard %s"%str(data.data))
@@ -45,11 +47,20 @@ def example():
 
     def update_position(vz, vx, dt):
         """ update agent position in xz plane given velocity and delta time"""
+        start_pos = env._sim._sim.agents[0].scene_node.absolute_position()
+
         ax = env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, _z_axis]
         env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
 
         ax = env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, _x_axis]
         env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
+
+        end_pos = env._sim._sim.agents[0].scene_node.absolute_position()
+
+        #can apply or not apply filter
+        filter_end = env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
+        env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
+        
 
     def update_attitude(roll, pitch, yaw, dt):
         """ update agent orientation given angular velocity and delta time"""
