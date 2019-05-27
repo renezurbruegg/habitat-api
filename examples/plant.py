@@ -36,8 +36,9 @@ def example():
 
     def transform_callback(data):
         print(rospy.get_name(), "Plant heard %s" % str(data.data))
-        vel_zx = data.data
-        update_position(vel_zx[0], vel_zx[1], 1)
+        vel = data.data
+        update_position(vel[0], vel[1], 1)
+        update_attitude(0,vel[2],vel[3],1)
         print("position updated")
 
     rospy.init_node("plant_model", anonymous=True)
@@ -92,7 +93,7 @@ def example():
 
         to_publish = np.float32(observations["rgb"].ravel())
         pub.publish(np.float32(observations["rgb"].ravel()))
-        
+
         count_steps += 1
         print(count_steps)
         print("Plant published the following:")
