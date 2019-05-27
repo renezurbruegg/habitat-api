@@ -3,37 +3,42 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import sys 
+import sys
 import os
-PKG = 'numpy_tutorial'
-import roslib; roslib.load_manifest(PKG)
+
+PKG = "numpy_tutorial"
+import roslib
+
+roslib.load_manifest(PKG)
 
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
-sys.path=[b for b in sys.path if "2.7" not in b]
-sys.path.insert(0,os.getcwd())
+
+sys.path = [b for b in sys.path if "2.7" not in b]
+sys.path.insert(0, os.getcwd())
 
 import habitat
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 
-pub = rospy.Publisher('rgb', numpy_msg(Floats),queue_size=10)
+pub = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
+
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
-    #define filter function
+    # grab a predfined move filter function for the agent
     env._sim._sim.agents[0].move_filter_fn = env._sim._sim._step_filter
 
     def transform_callback(data):
-        print (rospy.get_name(), "Plant heard %s"%str(data.data))
-        vel_zx=data.data
-        update_position(vel_zx[0],vel_zx[1],1)
+        print(rospy.get_name(), "Plant heard %s" % str(data.data))
+        vel_zx = data.data
+        update_position(vel_zx[0], vel_zx[1], 1)
         print("position updated")
-        
-    rospy.init_node('plant_model',anonymous=True)
-    rospy.Subscriber('linear_vel_command', numpy_msg(Floats), transform_callback)
+
+    rospy.init_node("plant_model", anonymous=True)
+    rospy.Subscriber("linear_vel_command", numpy_msg(Floats), transform_callback)
 
     print("Environment creation successful")
     observations = env.reset()
@@ -57,10 +62,9 @@ def example():
 
         end_pos = env._sim._sim.agents[0].scene_node.absolute_position()
 
-        #can apply or not apply filter
+        # can apply or not apply filter
         filter_end = env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
         env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
-        
 
     def update_attitude(roll, pitch, yaw, dt):
         """ update agent orientation given angular velocity and delta time"""
@@ -81,31 +85,29 @@ def example():
         env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(yaw * dt), ax_yaw)
         env._sim._sim.agents[0].scene_node.normalize()
 
-    while not env.episode_over and (not rospy.is_shutdown()):
-            
+    while not (env.episode_over or rospy.is_shutdown()):
         # update agent pose
-        #update_position(-1, 0, 1)
-        
+        # update_position(-1, 0, 1)
+
         # get observations (I think get_observations function is being developed by PR #80)
         sim_obs = env._sim._sim.get_sensor_observations()
         observations = env._sim._sensor_suite.get_observations(sim_obs)
-        
-        to_publish=np.float32(observations["rgb"].ravel())
+
+        to_publish = np.float32(observations["rgb"].ravel())
         pub.publish(np.float32(observations["rgb"].ravel()))
         # plot rgb and depth observation (can save/send np.array sensor output to ROS in the future)
-        #plt.imshow(observations["depth"][:, :, 0])
-        #plt.imshow(observations["rgb"])
+        # plt.imshow(observations["depth"][:, :, 0])
+        # plt.imshow(observations["rgb"])
         count_steps += 1
         print(count_steps)
         print("Plant published the following:")
         print(to_publish)
         pub.publish(np.float32(observations["rgb"].ravel()))
         rospy.sleep(0.01)  # sleep for 0.01 seconds
-            
+
     print("Episode finished after {} steps.".format(count_steps))
 
 
 # currently an infinite loop
 if __name__ == "__main__":
     example()
-
