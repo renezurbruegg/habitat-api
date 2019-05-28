@@ -16,13 +16,14 @@ pub1 = rospy.Publisher('linear_vel_command', numpy_msg(Floats),queue_size=10)
 pub2 = rospy.Publisher('angular_vel_command', numpy_msg(Floats),queue_size=10)
 # Author: Andrew Dai
 def callback(data):
-    vel_z=4*data.axes[1]/100
-    vel_x=4*data.axes[0]/100
+    vel_max=10 #m/s
+    vel_z=4*data.axes[1]*vel_max*0.001
+    vel_x=4*data.axes[0]*vel_max*0.001
     #negative sign in vel_z because agent eyes look at negative z axis
     linear_vel_to_publish=np.float32([-vel_z,-vel_x])
 
-    yaw=data.axes[3]/10
-    pitch=data.axes[4]/10
+    yaw=data.axes[3]
+    pitch=data.axes[4]
     angular_vel_to_publish=np.float32([pitch,yaw])
 
     vel_to_publish=np.float32([linear_vel_to_publish,angular_vel_to_publish]).ravel()
