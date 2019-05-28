@@ -23,8 +23,8 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 
-pub = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
-
+pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
+pub_position= rospy.Publisher("agent_position", numpy_msg(Floats), queue_size=10)
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
@@ -91,14 +91,13 @@ def example():
         sim_obs = env._sim._sim.get_sensor_observations()
         observations = env._sim._sensor_suite.get_observations(sim_obs)
 
-        to_publish = np.float32(observations["rgb"].ravel())
-        pub.publish(np.float32(observations["rgb"].ravel()))
-
         count_steps += 1
         print(count_steps)
-        print("Plant published the following:")
-        print(to_publish)
-        pub.publish(np.float32(observations["rgb"].ravel()))
+        pub_rgb.publish(np.float32(observations["rgb"].ravel()))
+        
+        states=env._sim._sim.agents[0].get_state()
+        position_to_pub = np.float32(states.position)
+        pub_position.publish(position_to_pub)
         rospy.sleep(0.01)  # sleep for 0.01 seconds
 
     print("Episode finished after {} steps.".format(count_steps))
