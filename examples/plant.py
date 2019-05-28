@@ -25,7 +25,9 @@ import numpy as np
 import quaternion
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
+pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
 pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
+
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
@@ -95,6 +97,8 @@ def example():
         count_steps += 1
         print(count_steps)
         pub_rgb.publish(np.float32(observations["rgb"].ravel()))
+        pub_depth.publish(np.float32(observations["depth"].ravel()*255))
+    
         
         states=env._sim._sim.agents[0].get_state()
 
