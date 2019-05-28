@@ -22,9 +22,11 @@ import habitat
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
+import quaternion
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_position= rospy.Publisher("agent_position", numpy_msg(Floats), queue_size=10)
+pub_quaternion = rospy.Publisher("agent_quaternion", numpy_msg(Floats), queue_size=10)
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
@@ -98,6 +100,8 @@ def example():
         states=env._sim._sim.agents[0].get_state()
         position_to_pub = np.float32(states.position)
         pub_position.publish(position_to_pub)
+
+        pub_quaternion.publish(quaternion.as_float_array(states.rotation))
         rospy.sleep(0.01)  # sleep for 0.01 seconds
 
     print("Episode finished after {} steps.".format(count_steps))
