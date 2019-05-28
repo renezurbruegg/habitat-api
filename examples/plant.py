@@ -100,7 +100,7 @@ def example():
 
         position_to_pub = np.float32(states.position)
         quaternion_to_pub=quaternion.as_float_array(states.rotation)
-        pose_to_pub=np.concatenate((position_to_pub,quaternion_to_pub))
+        pose_to_pub=np.float32(np.concatenate((position_to_pub,quaternion_to_pub)))
         pub_pose.publish(pose_to_pub)
         rospy.sleep(0.01)  # sleep for 0.01 seconds
 
