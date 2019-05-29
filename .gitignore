@@ -95,3 +95,7 @@ pyproject.toml
 *.swp
 
 *.png
+
+core
+
+unknown-0\.0-py27_0\.tar\.bz2
