@@ -26,29 +26,39 @@ def callback(data):
 
     #image_message = CvBridge().cv2_to_imgmsg(img, encoding="mono16")
 
-    img = (np.reshape(data.data, (256, 256))).astype(np.float32)
-    image_message = CvBridge().cv2_to_imgmsg(img, encoding="passthrough")
+    img = np.float32((np.reshape(data.data, (256, 256))))
+    img1=img.copy()/np.amax(img)+1#for debugging purposes
+    img1.setflags(write=1)
+    print(img1)
+    #img1[img1==0]=0.01
+    image_message = CvBridge().cv2_to_imgmsg(img1, encoding="passthrough")
 
     pub.publish(image_message)
 
+
     camera_info_msg = CameraInfo()
     width, height = 256, 256
-    fx, fy = 0, 0
-    cx, cy = 0, 0
+    fx, fy = 1, 1
+    cx, cy = 128, 128
     camera_info_msg.width = width
     camera_info_msg.height = height
     camera_info_msg.distortion_model = "plumb_bob"
-    camera_info_msg.K = [fx, 0, cx,
+    camera_info_msg.K = np.float32([fx, 0, cx,
                             0, fy, cy,
-                            0, 0, 1]
+                            0, 0, 1])
                             
-    camera_info_msg.D = [0, 0, 0, 0,0]
+    #camera_info_msg.D = [-0, 0.31874, -0.00197, 0.00071, 0.00000]
+    camera_info_msg.D =  np.float32([0,0,0,0,0])
 
     camera_info_msg.P = [fx, 0, cx, 0,
                             0, fy, cy, 0,
                             0, 0, 1, 0]
-                            
+
+    #camera_info_msg.roi.height=height
+    #camera_info_msg.roi.width=width
     camera_info_pub.publish(camera_info_msg)
+
+    
 
 
 def listener():
