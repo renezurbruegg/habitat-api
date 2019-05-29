@@ -22,9 +22,12 @@ camera_info_pub = rospy.Publisher("camera_info_topic", CameraInfo, queue_size=0)
 
 def callback(data):
     print(rospy.get_name(), "I heard %s" % str(data.data))
-    img = (np.reshape(data.data, (256, 256))).astype(np.uint16)
+    #img = (np.reshape(data.data, (256, 256))).astype(np.uint16)
 
-    image_message = CvBridge().cv2_to_imgmsg(img, encoding="mono16")
+    #image_message = CvBridge().cv2_to_imgmsg(img, encoding="mono16")
+
+    img = (np.reshape(data.data, (256, 256))).astype(np.float32)
+    image_message = CvBridge().cv2_to_imgmsg(img, encoding="passthrough")
 
     pub.publish(image_message)
 
