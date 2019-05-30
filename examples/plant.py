@@ -97,7 +97,7 @@ def example():
         count_steps += 1
         print(count_steps)
         pub_rgb.publish(np.float32(observations["rgb"].ravel()))
-        pub_depth.publish(np.float32(observations["depth"].ravel()*255))
+        pub_depth.publish(np.float32(observations["depth"].ravel()*10))
     
         
         states=env._sim._sim.agents[0].get_state()
