@@ -12,11 +12,18 @@ import tf
 
 def handle_agent_pose(msg,agentname):
     pose_array=msg.data
-    br = tf.TransformBroadcaster()
-    br.sendTransform((pose_array[0], pose_array[1], 0),
+    br1 = tf.TransformBroadcaster()
+    br1.sendTransform((pose_array[0], pose_array[1], 0),
                      pose_array[3:],
                      rospy.Time.now(),
                      agentname,
+                     "world")
+
+    br2 = tf.TransformBroadcaster()
+    br2.sendTransform((pose_array[0], pose_array[1], 0),
+                     pose_array[3:],
+                     rospy.Time.now(),
+                     "camera_depth_frame",
                      "world")
     print('handle_agent_pose_called')
 
