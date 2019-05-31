@@ -12,16 +12,25 @@ import tf
 
 def handle_agent_pose(msg,agentname):
     pose_array=msg.data
+    habitat_quaternion_orient = pose_array[3:]
+    (roll, pitch,yaw) = tf.transformations.euler_from_quaternion(habitat_quaternion_orient)
+    #ros_quaternion_orient = tf.transformations.quaternion_from_euler(yaw,roll,pitch) 
+   
+    #why is quaternion backwards??????
+    ros_quaternion_orient = (-habitat_quaternion_orient[0],-habitat_quaternion_orient[2],-habitat_quaternion_orient[1],-habitat_quaternion_orient[3])
+    #ros_quaternion_orient = (habitat_quaternion_orient[0],habitat_quaternion_orient[1],-habitat_quaternion_orient[2],habitat_quaternion_orient[3])
+    
+    print(yaw)
     br1 = tf.TransformBroadcaster()
-    br1.sendTransform((pose_array[0], pose_array[1], 0),
-                     pose_array[3:],
+    br1.sendTransform((-pose_array[2], -pose_array[0], 0),
+                     ros_quaternion_orient,
                      rospy.Time.now(),
                      agentname,
                      "world")
 
     br2 = tf.TransformBroadcaster()
-    br2.sendTransform((pose_array[0], pose_array[1], 0),
-                     pose_array[3:],
+    br2.sendTransform((-pose_array[2], -pose_array[0], 0),
+                     ros_quaternion_orient,
                      rospy.Time.now(),
                      "camera_depth_frame",
                      "world")
@@ -35,3 +44,9 @@ if __name__ == '__main__':
                      handle_agent_pose,
                      agentname)
     rospy.spin()
+
+  #    br1.sendTransform((-pose_array[2], -pose_array[0], 0),
+   #                  (pose_array[3],-pose_array[6],-pose_array[4],pose_array[5]),
+    #                 rospy.Time.now(),
+     #                agentname,
+      #               "world")
