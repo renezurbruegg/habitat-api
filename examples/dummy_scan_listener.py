@@ -9,6 +9,7 @@ from sensor_msgs.msg import LaserScan
 
 
 def callback(data):
+    print(rospy.get_name(), "I heard %s" % str(data.intensities))
     print("call back called")
     
 
