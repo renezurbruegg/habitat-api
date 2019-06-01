@@ -26,14 +26,14 @@ def handle_agent_pose(msg,agentname):
                      ros_quaternion_orient,
                      rospy.Time.now(),
                      agentname,
-                     "world")
+                     "map")
 
     br2 = tf.TransformBroadcaster()
     br2.sendTransform((-pose_array[2], -pose_array[0], 0),
                      ros_quaternion_orient,
                      rospy.Time.now(),
                      "camera_depth_frame",
-                     "world")
+                     "map")
     print('handle_agent_pose_called')
 
 if __name__ == '__main__':
