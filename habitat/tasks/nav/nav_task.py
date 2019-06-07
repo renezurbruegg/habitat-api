@@ -6,20 +6,23 @@
 
 from typing import Any, List, Optional, Type
 
+import attr
 import cv2
 import numpy as np
 from gym import spaces
 
-import habitat
 from habitat.config import Config
-from habitat.core.dataset import Episode, Dataset
-from habitat.core.embodied_task import Measurements
+from habitat.core.dataset import Dataset, Episode
+from habitat.core.embodied_task import EmbodiedTask, Measure, Measurements
+from habitat.core.registry import registry
 from habitat.core.simulator import (
-    Simulator,
-    ShortestPathPoint,
-    SensorTypes,
+    Sensor,
     SensorSuite,
+    SensorTypes,
+    ShortestPathPoint,
+    Simulator,
 )
+from habitat.core.utils import not_none_validator
 from habitat.tasks.utils import cartesian_to_polar, quaternion_rotate_vector
 from habitat.utils.visualizations import maps
 
@@ -47,65 +50,40 @@ def merge_sim_episode_config(
     return sim_config
 
 
+@attr.s(auto_attribs=True, kw_only=True)
 class NavigationGoal:
-    """Base class for a goal specification hierarchy.
+    r"""Base class for a goal specification hierarchy.
     """
 
-    position: List[float]
-    radius: Optional[float]
-
-    def __init__(
-        self, position: List[float], radius: Optional[float] = None, **kwargs
-    ) -> None:
-        self.position = position
-        self.radius = radius
+    position: List[float] = attr.ib(default=None, validator=not_none_validator)
+    radius: Optional[float] = None
 
 
+@attr.s(auto_attribs=True, kw_only=True)
 class ObjectGoal(NavigationGoal):
-    """Object goal that can be specified by object_id or position or object
+    r"""Object goal that can be specified by object_id or position or object
     category.
     """
 
-    object_id: str
-    object_name: Optional[str]
-    object_category: Optional[str]
-    room_id: Optional[str]
-    room_name: Optional[str]
-
-    def __init__(
-        self,
-        object_id: str,
-        room_id: Optional[str] = None,
-        object_name: Optional[str] = None,
-        object_category: Optional[str] = None,
-        room_name: Optional[str] = None,
-        **kwargs
-    ) -> None:
-        super().__init__(**kwargs)
-        self.object_id = object_id
-        self.object_name = object_name
-        self.object_category = object_category
-        self.room_id = room_id
-        self.room_name = room_name
+    object_id: str = attr.ib(default=None, validator=not_none_validator)
+    object_name: Optional[str] = None
+    object_category: Optional[str] = None
+    room_id: Optional[str] = None
+    room_name: Optional[str] = None
 
 
+@attr.s(auto_attribs=True, kw_only=True)
 class RoomGoal(NavigationGoal):
-    """Room goal that can be specified by room_id or position with radius.
+    r"""Room goal that can be specified by room_id or position with radius.
     """
 
-    room_id: str
-    room_name: Optional[str]
-
-    def __init__(
-        self, room_id: str, room_name: Optional[str] = None, **kwargs
-    ) -> None:
-        super().__init__(**kwargs)  # type: ignore
-        self.room_id = room_id
-        self.room_name = room_name
+    room_id: str = attr.ib(default=None, validator=not_none_validator)
+    room_name: Optional[str] = None
 
 
+@attr.s(auto_attribs=True, kw_only=True)
 class NavigationEpisode(Episode):
-    """Class for episode specification that includes initial position and
+    r"""Class for episode specification that includes initial position and
     rotation of agent, scene name, goal and optional shortest paths. An
     episode is a description of one task instance for the agent.
 
@@ -121,26 +99,16 @@ class NavigationEpisode(Episode):
         shortest_paths: list containing shortest paths to goals
     """
 
-    goals: List[NavigationGoal]
-    start_room: Optional[str]
-    shortest_paths: Optional[List[ShortestPathPoint]]
-
-    def __init__(
-        self,
-        goals: List[NavigationGoal],
-        start_room: Optional[str] = None,
-        shortest_paths: Optional[List[ShortestPathPoint]] = None,
-        **kwargs
-    ) -> None:
-        super().__init__(**kwargs)
-        self.goals = goals
-        self.shortest_paths = shortest_paths
-        self.start_room = start_room
+    goals: List[NavigationGoal] = attr.ib(
+        default=None, validator=not_none_validator
+    )
+    start_room: Optional[str] = None
+    shortest_paths: Optional[List[ShortestPathPoint]] = None
 
 
-class PointGoalSensor(habitat.Sensor):
-    """
-    Sensor for PointGoal observations which are used in the PointNav task.
+@registry.register_sensor
+class PointGoalSensor(Sensor):
+    r"""Sensor for PointGoal observations which are used in the PointNav task.
     For the agent in simulator the forward direction is along negative-z.
     In polar coordinate format the angle returned is azimuth to the goal.
 
@@ -204,9 +172,9 @@ class PointGoalSensor(habitat.Sensor):
         return direction_vector_agent
 
 
-class StaticPointGoalSensor(habitat.Sensor):
-    """
-    Sensor for PointGoal observations which are used in the StaticPointNav
+@registry.register_sensor
+class StaticPointGoalSensor(Sensor):
+    r"""Sensor for PointGoal observations which are used in the StaticPointNav
     task. For the agent in simulator the forward direction is along negative-z.
     In polar coordinate format the angle returned is azimuth to the goal.
     Args:
@@ -233,7 +201,7 @@ class StaticPointGoalSensor(habitat.Sensor):
         return "static_pointgoal"
 
     def _get_sensor_type(self, *args: Any, **kwargs: Any):
-        return SensorTypes.STATIC_GOAL_VECTOR
+        return SensorTypes.PATH
 
     def _get_observation_space(self, *args: Any, **kwargs: Any):
         if self._goal_format == "CARTESIAN":
@@ -276,9 +244,10 @@ class StaticPointGoalSensor(habitat.Sensor):
         return self._initial_vector
 
 
-class HeadingSensor(habitat.Sensor):
-    """
-    Sensor for observing the agent's heading in the global coordinate frame.
+@registry.register_sensor
+class HeadingSensor(Sensor):
+    r"""Sensor for observing the agent's heading in the global coordinate
+    frame.
 
     Args:
         sim: reference to the simulator for calculating task observations.
@@ -312,9 +281,9 @@ class HeadingSensor(habitat.Sensor):
         return np.array(phi)
 
 
-class ProximitySensor(habitat.Sensor):
-    """
-    Sensor for observing the distance to the closest obstacle
+@registry.register_sensor
+class ProximitySensor(Sensor):
+    r"""Sensor for observing the distance to the closest obstacle
 
     Args:
         sim: reference to the simulator for calculating task observations.
@@ -350,8 +319,9 @@ class ProximitySensor(habitat.Sensor):
         )
 
 
-class SPL(habitat.Measure):
-    """SPL (Success weighted by Path Length)
+@registry.register_measure
+class SPL(Measure):
+    r"""SPL (Success weighted by Path Length)
 
     ref: On Evaluation of Embodied Agents - Anderson et. al
     https://arxiv.org/pdf/1807.06757.pdf
@@ -408,7 +378,8 @@ class SPL(habitat.Measure):
         )
 
 
-class Collisions(habitat.Measure):
+@registry.register_measure
+class Collisions(Measure):
     def __init__(self, sim, config):
         self._sim = sim
         self._config = config
@@ -434,8 +405,9 @@ class Collisions(habitat.Measure):
             self._metric += 1
 
 
-class TopDownMap(habitat.Measure):
-    """Top Down Map measure
+@registry.register_measure
+class TopDownMap(Measure):
+    r"""Top Down Map measure
     """
 
     def __init__(self, sim: Simulator, config: Config):
@@ -580,7 +552,8 @@ class TopDownMap(habitat.Measure):
         return self._top_down_map, a_x, a_y
 
 
-class NavigationTask(habitat.EmbodiedTask):
+@registry.register_task(name="Nav-v0")
+class NavigationTask(EmbodiedTask):
     def __init__(
         self,
         task_config: Config,
@@ -591,35 +564,21 @@ class NavigationTask(habitat.EmbodiedTask):
         task_measurements = []
         for measurement_name in task_config.MEASUREMENTS:
             measurement_cfg = getattr(task_config, measurement_name)
-            is_valid_measurement = hasattr(
-                habitat.tasks.nav.nav_task,  # type: ignore
-                measurement_cfg.TYPE,
-            )
-            assert is_valid_measurement, "invalid measurement type {}".format(
-                measurement_cfg.TYPE
-            )
-            task_measurements.append(
-                getattr(
-                    habitat.tasks.nav.nav_task,  # type: ignore
-                    measurement_cfg.TYPE,
-                )(sim, measurement_cfg)
-            )
+            measure_type = registry.get_measure(measurement_cfg.TYPE)
+            assert (
+                measure_type is not None
+            ), "invalid measurement type {}".format(measurement_cfg.TYPE)
+            task_measurements.append(measure_type(sim, measurement_cfg))
         self.measurements = Measurements(task_measurements)
 
         task_sensors = []
         for sensor_name in task_config.SENSORS:
             sensor_cfg = getattr(task_config, sensor_name)
-            is_valid_sensor = hasattr(
-                habitat.tasks.nav.nav_task, sensor_cfg.TYPE  # type: ignore
-            )
-            assert is_valid_sensor, "invalid sensor type {}".format(
+            sensor_type = registry.get_sensor(sensor_cfg.TYPE)
+            assert sensor_type is not None, "invalid sensor type {}".format(
                 sensor_cfg.TYPE
             )
-            task_sensors.append(
-                getattr(
-                    habitat.tasks.nav.nav_task, sensor_cfg.TYPE  # type: ignore
-                )(sim, sensor_cfg)
-            )
+            task_sensors.append(sensor_type(sim, sensor_cfg))
 
         self.sensor_suite = SensorSuite(task_sensors)
         super().__init__(config=task_config, sim=sim, dataset=dataset)

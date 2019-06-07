@@ -1,5 +1,13 @@
 baselines
 ==============================
+### Installation
+
+The `habitat_baselines` sub-package is NOT included upon installation by default. To install `habitat_baselines`, use the following command instead:
+```bash
+pip install -r requirements.txt
+python setup.py develop --all
+```
+This will also install additional requirements for each sub-module in `habitat_baselines/`, which are specified in `requirements.txt` files located in the sub-module directory.
 
 
 ### Reinforcement Learning (RL)
@@ -38,6 +46,12 @@ python -u habitat_baselines/train_ppo.py \
     --task-config "configs/tasks/pointnav.yaml" \
 
 
+```
+
+**single-episode training**: 
+Algorithms can be trained with a single-episode option. This option can be used as a sanity check since good algorithms should overfit one episode relatively fast. To enable this option, add `DATASET.NUM_EPISODE_SAMPLE 1` *at the end* of the training command, or include the single-episode yaml file in `--task-config` like this:
+```
+   --task-config "configs/tasks/pointnav.yaml,configs/datasets/single_episode.yaml"
 ```
 
 **test**:

@@ -5,20 +5,21 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-from time import time
-from collections import deque
 import random
-import numpy as np
+from collections import deque
+from time import time
 
+import numpy as np
 import torch
+
 import habitat
-from habitat import logger
-from habitat.sims.habitat_simulator import SimulatorActions
-from habitat.config.default import get_config as cfg_env
 from config.default import get_config as cfg_baseline
+from habitat import logger
+from habitat.config.default import get_config as cfg_env
 from habitat.datasets.pointnav.pointnav_dataset import PointNavDatasetV1
+from habitat.sims.habitat_simulator import SimulatorActions
 from rl.ppo import PPO, Policy, RolloutStorage
-from rl.ppo.utils import update_linear_schedule, ppo_args, batch_obs
+from rl.ppo.utils import batch_obs, ppo_args, update_linear_schedule
 
 
 class NavRLEnv(habitat.RLEnv):
@@ -109,7 +110,7 @@ def construct_envs(args):
     env_configs = []
     baseline_configs = []
 
-    basic_config = cfg_env(config_paths=args.task_config)
+    basic_config = cfg_env(config_paths=args.task_config, opts=args.opts)
 
     scenes = PointNavDatasetV1.get_scenes_to_load(basic_config.DATASET)
 
@@ -123,7 +124,7 @@ def construct_envs(args):
         scene_split_size = int(np.floor(len(scenes) / args.num_processes))
 
     for i in range(args.num_processes):
-        config_env = cfg_env(config_paths=args.task_config)
+        config_env = cfg_env(config_paths=args.task_config, opts=args.opts)
         config_env.defrost()
 
         if len(scenes) > 0:

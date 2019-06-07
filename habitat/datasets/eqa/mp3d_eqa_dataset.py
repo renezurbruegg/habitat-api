@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from habitat.config import Config
 from habitat.core.dataset import Dataset
+from habitat.core.registry import registry
 from habitat.tasks.eqa.eqa_task import EQAEpisode, QuestionData
 from habitat.tasks.nav.nav_task import ObjectGoal, ShortestPathPoint
 
@@ -26,8 +27,9 @@ def get_default_mp3d_v1_config(split: str = "val"):
     return config
 
 
+@registry.register_dataset(name="MP3DEQA-v1")
 class Matterport3dDatasetV1(Dataset):
-    """Class inherited from Dataset that loads Matterport3D
+    r"""Class inherited from Dataset that loads Matterport3D
     Embodied Question Answering dataset.
 
     This class can then be used as follows::
@@ -53,6 +55,8 @@ class Matterport3dDatasetV1(Dataset):
             config.MP3DEQAV1.DATA_PATH.format(split=config.SPLIT), "rt"
         ) as f:
             self.from_json(f.read())
+
+        self.sample_episodes(config.NUM_EPISODE_SAMPLE)
 
     def from_json(
         self, json_str: str, scenes_dir: Optional[str] = None

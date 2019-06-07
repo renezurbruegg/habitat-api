@@ -158,7 +158,9 @@ def test_env():
             scene_id=config.SIMULATOR.SCENE,
             start_position=[-3.0133917, 0.04623024, 7.3064547],
             start_rotation=[0, 0.163276, 0, 0.98658],
-            goals=[NavigationGoal([-3.0133917, 0.04623024, 7.3064547])],
+            goals=[
+                NavigationGoal(position=[-3.0133917, 0.04623024, 7.3064547])
+            ],
             info={"geodesic_distance": 0.001},
         )
     ]
@@ -190,7 +192,7 @@ def test_env():
 
 
 def make_rl_env(config, dataset, rank: int = 0):
-    """Constructor for default habitat Env.
+    r"""Constructor for default habitat Env.
     :param config: configurations for environment
     :param dataset: dataset for environment
     :param rank: rank for setting seeds for environment
@@ -250,7 +252,9 @@ def test_rl_env():
             scene_id=config.SIMULATOR.SCENE,
             start_position=[-3.0133917, 0.04623024, 7.3064547],
             start_rotation=[0, 0.163276, 0, 0.98658],
-            goals=[NavigationGoal([-3.0133917, 0.04623024, 7.3064547])],
+            goals=[
+                NavigationGoal(position=[-3.0133917, 0.04623024, 7.3064547])
+            ],
             info={"geodesic_distance": 0.001},
         )
     ]
@@ -309,8 +313,8 @@ def test_vec_env_call_func():
     env_ids = envs.call(["get_env_ind"] * num_envs)
     assert env_ids == true_env_ids
 
-    envs.pause_at(3)
-    true_env_ids.pop(3)
+    envs.pause_at(0)
+    true_env_ids.pop(0)
     env_ids = envs.call(["get_env_ind"] * num_envs)
     assert env_ids == true_env_ids
 
@@ -323,6 +327,21 @@ def test_vec_env_call_func():
     env_ids = envs.call(["get_env_ind"] * num_envs)
     assert env_ids == list(range(num_envs))
     envs.close()
+
+
+def test_close_with_paused():
+    configs, datasets = _load_test_data()
+    num_envs = len(configs)
+    env_fn_args = tuple(zip(configs, datasets, range(num_envs)))
+    with habitat.VectorEnv(
+        env_fn_args=env_fn_args, multiprocessing_start_method="forkserver"
+    ) as envs:
+        envs.reset()
+
+        envs.pause_at(3)
+        envs.pause_at(0)
+
+    assert envs._is_closed
 
 
 # TODO Bring back this test for the greedy follower

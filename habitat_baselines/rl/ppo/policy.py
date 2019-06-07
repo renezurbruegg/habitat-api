@@ -4,12 +4,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import numpy as np
 import torch
 import torch.nn as nn
 
-from habitat_baselines.rl.ppo.utils import Flatten, CategoricalNet
-
-import numpy as np
+from habitat_baselines.rl.ppo.utils import CategoricalNet, Flatten
 
 
 class Policy(nn.Module):
@@ -60,7 +59,7 @@ class Policy(nn.Module):
 
 
 class Net(nn.Module):
-    """Network which passes the input image through CNN and concatenates
+    r"""Network which passes the input image through CNN and concatenates
     goal vector with CNN's output and passes that through RNN.
     """
 
@@ -153,7 +152,7 @@ class Net(nn.Module):
     def _conv_output_dim(
         self, dimension, padding, dilation, kernel_size, stride
     ):
-        """Calculates the output height and width based on the input
+        r"""Calculates the output height and width based on the input
         height and width to the convolution layer.
 
         ref: https://pytorch.org/docs/master/nn.html#torch.nn.Conv2d

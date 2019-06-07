@@ -37,6 +37,12 @@ _C.TASK.POINTGOAL_SENSOR = CN()
 _C.TASK.POINTGOAL_SENSOR.TYPE = "PointGoalSensor"
 _C.TASK.POINTGOAL_SENSOR.GOAL_FORMAT = "POLAR"
 # -----------------------------------------------------------------------------
+# # STATIC POINTGOAL SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.STATIC_POINTGOAL_SENSOR = CN()
+_C.TASK.STATIC_POINTGOAL_SENSOR.TYPE = "StaticPointGoalSensor"
+_C.TASK.STATIC_POINTGOAL_SENSOR.GOAL_FORMAT = "CARTESIAN"
+# -----------------------------------------------------------------------------
 # # HEADING SENSOR
 # -----------------------------------------------------------------------------
 _C.TASK.HEADING_SENSOR = CN()
@@ -79,7 +85,8 @@ _C.SIMULATOR.SCENE = (
     "data/scene_datasets/habitat-test-scenes/" "van-gogh-room.glb"
 )
 _C.SIMULATOR.SEED = _C.SEED
-_C.SIMULATOR.TURN_ANGLE = 10  # in degrees
+_C.SIMULATOR.TURN_ANGLE = 10  # angle to rotate left or right in degrees
+_C.SIMULATOR.TILT_ANGLE = 15  # angle to tilt the camera up or down in degrees
 _C.SIMULATOR.DEFAULT_AGENT_ID = 0
 # -----------------------------------------------------------------------------
 # # SENSORS
@@ -136,6 +143,7 @@ _C.DATASET = CN()
 _C.DATASET.TYPE = "PointNav-v1"
 _C.DATASET.SPLIT = "train"
 _C.DATASET.SCENES_DIR = "data/scene_datasets"
+_C.DATASET.NUM_EPISODE_SAMPLE = -1
 # -----------------------------------------------------------------------------
 # MP3DEQAV1 DATASET
 # -----------------------------------------------------------------------------
@@ -160,8 +168,7 @@ def get_config(
     config_paths: Optional[Union[List[str], str]] = None,
     opts: Optional[list] = None,
 ) -> CN:
-    """
-    Create a unified config with default values overwritten by values from
+    r"""Create a unified config with default values overwritten by values from
     `config_paths` and overwritten by options from `opts`.
     Args:
         config_paths: List of config paths or string that contains comma
