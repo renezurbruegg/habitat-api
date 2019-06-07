@@ -31,7 +31,7 @@ pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
 
 def example():
     env = habitat.Env(
-        config=habitat.get_config("configs/tasks/pointnav.yaml")
+        config=habitat.get_config("configs/tasks/pointnav_gibson.yaml")
     )
 
     print("Environment creation successful")
@@ -100,6 +100,8 @@ def example():
     while not (env.episode_over or rospy.is_shutdown()):
         # get observations (I think get_observations function is being developed by PR #80)
         #print(observations.keys())
+        
+
         env._update_step_stats()
         print("Destination, distance: {:3f}, theta(radians): {:.2f}".format(
             observations["pointgoal"][0], observations["pointgoal"][1]))
