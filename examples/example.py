@@ -3,15 +3,19 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import sys 
+import os
 import habitat
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
-
+a=np.float32([1,2,3,4,5])
 
 def example():
     env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml"))
+    
+    #grab a pre-written filter funciton for the agent
+    env._sim._sim.agents[0].move_filter_fn = env._sim._sim._step_filter
 
     print("Environment creation successful")
     observations = env.reset()
@@ -50,24 +54,34 @@ def example():
         env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(yaw * dt), ax_yaw)
         env._sim._sim.agents[0].scene_node.normalize()
 
-    while not env.episode_over:
+    pub = rospy.Publisher('floats', numpy_msg(Floats),queue_size=10)
+    rospy.init_node('habitat_plant_model', anonymous=True)
+    r = rospy.Rate(10) # 10hz
 
-        # update agent pose
-        update_position(-1, 0, 1)
-        # update_attitude(0, 0, 30, 1)
+    while not rospy.is_shutdown():
+        while not env.episode_over:
+            
+            # update agent pose
+            update_position(-1, 0, 1)
+            # update_attitude(0, 0, 30, 1)
 
-        # get observations (I think get_observations function is being developed by PR #80)
-        sim_obs = env._sim._sim.get_sensor_observations()
-        observations = env._sim._sensor_suite.get_observations(sim_obs)
+            # get observations (I think get_observations function is being developed by PR #80)
+            sim_obs = env._sim._sim.get_sensor_observations()
+            observations = env._sim._sensor_suite.get_observations(sim_obs)
+            
+            to_publish=np.float32(observations["rgb"].ravel())
+            pub.publish(np.float32(observations["rgb"].ravel()))
+            # plot rgb and depth observation (can save/send np.array sensor output to ROS in the future)
+            #plt.imshow(observations["depth"][:, :, 0])
+            
 
-        # plot rgb and depth observation (can save/send np.array sensor output to ROS in the future)
-        plt.imshow(observations["depth"][:, :, 0])
-        plt.show()
+            #plt.imshow(observations["rgb"])
+ 
 
-        plt.imshow(observations["rgb"])
-        plt.show()
-
-        count_steps += 1
+            count_steps += 1
+            print(count_steps)
+            print(to_publish)
+            r.sleep()
 
     print("Episode finished after {} steps.".format(count_steps))
 
