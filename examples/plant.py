@@ -55,6 +55,8 @@ def example():
     _z_axis = 2
 
     def update_position(vz, vx, dt):
+        vx=vx*0.3
+        vz=vz*0.3
         """ update agent position in xz plane given velocity and delta time"""
         start_pos = env._sim._sim.agents[0].scene_node.absolute_position()
 
@@ -72,6 +74,9 @@ def example():
 
     def update_attitude(roll, pitch, yaw, dt):
         """ update agent orientation given angular velocity and delta time"""
+        roll =0
+        pitch =0
+        yaw=yaw*0.08
         ax_roll = np.zeros(3, dtype=np.float32)
         ax_roll[_z_axis] = 1
         env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(roll * dt), ax_roll)
