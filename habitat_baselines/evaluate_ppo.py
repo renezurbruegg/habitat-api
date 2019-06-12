@@ -39,7 +39,15 @@ def main():
         default="configs/tasks/pointnav.yaml",
         help="path to config yaml containing information about task",
     )
-    args = parser.parse_args()
+    
+    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/rgbd.pth", \
+    '--sim-gpu-id', '0',\
+    '--pth-gpu-id','0', \
+    '--num-processes', '1', \
+    '--count-test-episodes', '100', \
+    '--task-config', "configs/tasks/pointnav_rgbd.yaml" ]
+    args = parser.parse_args(foo)
+    #args = parser.parse_args()
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
