@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
-
+import time
 import torch
 
 import habitat
@@ -139,8 +139,13 @@ def main():
         outputs = envs.step([a[0].item() for a in actions])
 
         observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
-      #  plt.imshow(observations[0]["rgb"])
-       # plt.show()
+
+        cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
+        cv2.waitKey(900)
+
+        time.sleep(1)
+
+        print ("bc after plotting")
         batch = batch_obs(observations)
         for sensor in batch:
             batch[sensor] = batch[sensor].to(device)
