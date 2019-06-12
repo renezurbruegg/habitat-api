@@ -23,6 +23,7 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import quaternion
+import time
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
@@ -100,7 +101,7 @@ def example():
     while not (env.episode_over or rospy.is_shutdown()):
         # get observations (I think get_observations function is being developed by PR #80)
         #print(observations.keys())
-        
+        prev_time = time.time()
 
         env._update_step_stats()
         print("Destination, distance: {:3f}, theta(radians): {:.2f}".format(
@@ -126,7 +127,9 @@ def example():
         quaternion_to_pub=quaternion.as_float_array(states.rotation)
         pose_to_pub=np.float32(np.concatenate((position_to_pub,quaternion_to_pub)))
         pub_pose.publish(pose_to_pub)
-        rospy.sleep(1/10)  # sleep for 0.01 seconds
+        current_time = rospy.Time.now()
+        rospy.sleep(1/20)  # sleep for 0.05 seconds
+        print(time.time()-prev_time)
 
     print("Episode finished after {} steps.".format(count_steps))
 
