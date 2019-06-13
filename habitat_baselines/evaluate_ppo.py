@@ -7,15 +7,19 @@
 import argparse
 
 import torch
+import time
 
 import habitat
 from habitat.config.default import get_config
 from config.default import get_config as cfg_baseline
+import cv2
 
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
 
+def transform_rgb_bgr(image):
+    return image[:, :, [2, 1, 0]]
 
 def main():
     parser = argparse.ArgumentParser()
@@ -45,7 +49,7 @@ def main():
     '--pth-gpu-id','0', \
     '--num-processes', '1', \
     '--count-test-episodes', '100', \
-    '--task-config', "configs/tasks/pointnav_rgbd.yaml" ]
+    '--task-config', "configs/tasks/pointnav_gibson.yaml" ]
     args = parser.parse_args(foo)
     #args = parser.parse_args()
 
@@ -133,6 +137,15 @@ def main():
         outputs = envs.step([a[0].item() for a in actions])
 
         observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
+
+        #for visualizing where robot is going
+        cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
+        cv2.waitKey(100)
+        time.sleep(0.2)
+        print ("bc after plotting")
+       
+            
+
         batch = batch_obs(observations)
         for sensor in batch:
             batch[sensor] = batch[sensor].to(device)
