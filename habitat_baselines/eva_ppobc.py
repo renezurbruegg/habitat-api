@@ -17,6 +17,7 @@ import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 
+initial_sys_path = sys.path
 sys.path = [b for b in sys.path if "2.7" not in b]
 sys.path.insert(0, os.getcwd())
 
@@ -33,6 +34,7 @@ import cv2
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
+sys.path = initial_sys_path
 
 def transform_rgb_bgr(image):
     return image[:, :, [2, 1, 0]]
