@@ -16,6 +16,7 @@ roslib.load_manifest(PKG)
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
+from std_msgs.msg import Int32
 
 initial_sys_path = sys.path
 sys.path = [b for b in sys.path if "2.7" not in b]
@@ -36,8 +37,8 @@ from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
 sys.path = initial_sys_path
 
-def transform_rgb_bgr(image):
-    return image[:, :, [2, 1, 0]]
+pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
+rospy.init_node('controller_nn', anonymous=True)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -134,71 +135,26 @@ def main():
     for sensor in batch:
         batch[sensor] = batch[sensor].to(device)
 
-    episode_rewards = torch.zeros(envs.num_envs, 1, device=device)
-    episode_spls = torch.zeros(envs.num_envs, 1, device=device)
-    episode_success = torch.zeros(envs.num_envs, 1, device=device)
-    episode_counts = torch.zeros(envs.num_envs, 1, device=device)
-    current_episode_reward = torch.zeros(envs.num_envs, 1, device=device)
-
     test_recurrent_hidden_states = torch.zeros(
         args.num_processes, args.hidden_size, device=device
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
+    rate = rospy.Rate(10)
 
 #while still evaluating stuff
-    while episode_counts.sum() < args.count_test_episodes:
-        with torch.no_grad():
-    #get the next action number (actions if more than 1 process)        
-            _, actions, _, test_recurrent_hidden_states = actor_critic.act(
-                batch,
-                test_recurrent_hidden_states,
-                not_done_masks,
-                deterministic=False,
-            )
-
-        outputs = envs.step([a[0].item() for a in actions])
-
-        observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
-
-        #for visualizing where robot is going
-        cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
-        cv2.waitKey(100)
-        time.sleep(0.2)
-        print ("bc after plotting")
+    while not rospy.is_shutdown():
        
-            
-
-        batch = batch_obs(observations)
-        for sensor in batch:
-            batch[sensor] = batch[sensor].to(device)
-
-        not_done_masks = torch.tensor(
-            [[0.0] if done else [1.0] for done in dones],
-            dtype=torch.float,
-            device=device,
+    #get the next action number (actions if more than 1 process) produce actions here
+        _, actions, _, test_recurrent_hidden_states = actor_critic.act(
+            batch,
+            test_recurrent_hidden_states,
+            not_done_masks,
+            deterministic=False,
         )
-
-        for i in range(not_done_masks.shape[0]):
-            if not_done_masks[i].item() == 0:
-                episode_spls[i] += infos[i]["spl"]
-                if infos[i]["spl"] > 0:
-                    episode_success[i] += 1
-
-        rewards = torch.tensor(
-            rewards, dtype=torch.float, device=device
-        ).unsqueeze(1)
-        current_episode_reward += rewards
-        episode_rewards += (1 - not_done_masks) * current_episode_reward
-        episode_counts += 1 - not_done_masks
-        current_episode_reward *= not_done_masks
-
-    episode_reward_mean = (episode_rewards / episode_counts).mean().item()
-    episode_spl_mean = (episode_spls / episode_counts).mean().item()
-    episode_success_mean = (episode_success / episode_counts).mean().item()
-
-    print("Average episode reward: {:.6f}".format(episode_reward_mean))
-    print("Average episode success: {:.6f}".format(episode_success_mean))
-    print("Average episode spl: {:.6f}".format(episode_spl_mean))
+        
+        pub_action.publish(actions.item())
+        
+        rate.sleep()
 
 
 if __name__ == "__main__":
