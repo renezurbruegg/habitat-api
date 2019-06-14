@@ -40,7 +40,13 @@ sys.path = initial_sys_path
 pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
 rospy.init_node('controller_nn', anonymous=True)
 
+def transform_callback(data):
+    #print(rospy.get_name(), "Plant heard %s" % str(data.data))
+    print("I heard "+str(data.data))
+
 def main():
+    rospy.Subscriber("action_id", Int32, transform_callback)
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
     parser.add_argument("--sim-gpu-id", type=int, required=True)
