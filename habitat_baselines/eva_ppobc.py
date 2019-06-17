@@ -39,14 +39,17 @@ sys.path = initial_sys_path
 
 pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
 rospy.init_node('controller_nn', anonymous=True)
+action_id = 100
 
-def transform_callback(data):
-    #print(rospy.get_name(), "Plant heard %s" % str(data.data))
-    print("I heard "+str(data.data))
+
+#global actor_critic
 
 def main():
-    rospy.Subscriber("action_id", Int32, transform_callback)
-    
+    global actor_critic
+    global batch
+    global not_done_masks
+    global test_recurrent_hidden_states
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
     parser.add_argument("--sim-gpu-id", type=int, required=True)
@@ -69,13 +72,15 @@ def main():
         help="path to config yaml containing information about task",
     )
     
-    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/rgbd.pth", \
+    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth", \
     '--sim-gpu-id', '0',\
     '--pth-gpu-id','0', \
     '--num-processes', '1', \
     '--count-test-episodes', '100', \
-    '--task-config', "configs/tasks/pointnav_gibson.yaml" ]
+    '--task-config', "configs/tasks/pointnav_gibson.yaml",\
+    '--sensors','DEPTH_SENSOR' ]
     args = parser.parse_args(foo)
+
     #args = parser.parse_args()
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
@@ -134,9 +139,9 @@ def main():
     ppo.load_state_dict(ckpt["state_dict"])
 
 # convert actor_crtiic to ppo.actor_critic
+    observations = envs.reset()
     actor_critic = ppo.actor_critic
 
-    observations = envs.reset()
     batch = batch_obs(observations)
     for sensor in batch:
         batch[sensor] = batch[sensor].to(device)
@@ -148,19 +153,35 @@ def main():
     rate = rospy.Rate(10)
 
 #while still evaluating stuff
-    while not rospy.is_shutdown():
-       
-    #get the next action number (actions if more than 1 process) produce actions here
-        _, actions, _, test_recurrent_hidden_states = actor_critic.act(
+
+    
+#get the next action number (actions if more than 1 process) produce actions here
+    _, actions, _, test_recurrent_hidden_states = actor_critic.act(
+        batch,
+        test_recurrent_hidden_states,
+        not_done_masks,
+        deterministic=False,
+    )
+    
+    def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
+    #print(rospy.get_name(), "Plant heard %s" % str(data.data))
+        global actor_critic
+        global batch
+        global not_done_masks
+        global test_recurrent_hidden_states
+        
+        _, actions, _, test_recurrent_hidden_states= actor_critic.act(
             batch,
             test_recurrent_hidden_states,
             not_done_masks,
             deterministic=False,
         )
-        
+        print("I heard from call back"+str(actions.item()))
         pub_action.publish(actions.item())
-        
-        rate.sleep()
+    
+
+    rospy.Subscriber("depth", numpy_msg(Floats), transform_callback)
+    rospy.spin()
 
 
 if __name__ == "__main__":
