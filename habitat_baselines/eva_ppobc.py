@@ -39,6 +39,8 @@ from rl.ppo.utils import batch_obs
 sys.path = initial_sys_path
 
 pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
+pub_vel = rospy.Publisher('linear_vel_command', numpy_msg(Floats),queue_size=10)
+
 rospy.init_node('controller_nn', anonymous=True)
 action_id = 100
 
@@ -202,8 +204,20 @@ def main():
             not_done_masks,
             deterministic=False,
         )
+
+        action_id = actions.item()
+        if action_id == 0:
+            pub_vel.publish(np.float32([-0.25,0,0,0]))
+        elif action_id == 1:
+            pub_vel.publish(np.float32([0,0,0,10]))
+        elif action_id ==2:
+            pub_vel.publish(np.float32([0,0,0,-10]))
+
+
+        
         print("I heard from call back"+str(actions.item()))
         pub_action.publish(actions.item())
+        
     
 
     rospy.Subscriber("depth", numpy_msg(Floats), transform_callback)
