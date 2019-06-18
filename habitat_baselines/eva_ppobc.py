@@ -17,6 +17,7 @@ import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from std_msgs.msg import Int32
+import numpy as np
 
 initial_sys_path = sys.path
 sys.path = [b for b in sys.path if "2.7" not in b]
@@ -49,6 +50,7 @@ def main():
     global batch
     global not_done_masks
     global test_recurrent_hidden_states
+    global env
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
@@ -77,7 +79,7 @@ def main():
     '--pth-gpu-id','0', \
     '--num-processes', '1', \
     '--count-test-episodes', '100', \
-    '--task-config', "configs/tasks/pointnav_gibson.yaml",\
+    '--task-config', "configs/tasks/pointnav.yaml",\
     '--sensors','DEPTH_SENSOR' ]
     args = parser.parse_args(foo)
 
@@ -105,21 +107,16 @@ def main():
 
     assert len(baseline_configs) > 0, "empty list of datasets"
 
-    envs = habitat.VectorEnv(
-        make_env_fn=make_env_fn,
-        env_fn_args=tuple(
-            tuple(
-                zip(env_configs, baseline_configs, range(args.num_processes))
-            )
-        ),
+    env = habitat.Env(
+        config=habitat.get_config(args.task_config)
     )
 
     ckpt = torch.load(args.model_path, map_location=device)
 
 #get assign actor critic 
     actor_critic = Policy( 
-        observation_space=envs.observation_spaces[0],
-        action_space=envs.action_spaces[0],
+        observation_space=env.observation_space,
+        action_space=env.action_space,
         hidden_size=512,
     )
     actor_critic.to(device)
@@ -139,7 +136,23 @@ def main():
     ppo.load_state_dict(ckpt["state_dict"])
 
 # convert actor_crtiic to ppo.actor_critic
-    observations = envs.reset()
+
+    # observations = env._sim._sensor_suite.get_observations(sim_obs)
+    # observations.update(
+    #     env._task.sensor_suite.get_observations(
+    #         observations=observations, episode=env.current_episode
+    #     )
+    # )
+    observations = env.reset()
+    env._update_step_stats()
+    sim_obs = env._sim._sim.get_sensor_observations()
+    observation = env._sim._sensor_suite.get_observations(sim_obs)
+    observation.update(
+        env._task.sensor_suite.get_observations(
+            observations=observation, episode=env.current_episode
+        )
+    )
+    observations = [observation]
     actor_critic = ppo.actor_critic
 
     batch = batch_obs(observations)
@@ -151,8 +164,6 @@ def main():
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
     rate = rospy.Rate(10)
-
-#while still evaluating stuff
 
     
 #get the next action number (actions if more than 1 process) produce actions here
@@ -169,7 +180,22 @@ def main():
         global batch
         global not_done_masks
         global test_recurrent_hidden_states
-        
+        global env
+        observation = {}
+        observation['depth'] =  np.reshape(data.data,(256,256,1))
+        env._update_step_stats()
+        # sim_obs = env._sim._sim.get_sensor_observations()
+        # observation = env._sim._sensor_suite.get_observations(sim_obs)
+        observation.update(
+        env._task.sensor_suite.get_observations(
+            observations=observation, episode=env.current_episode
+        )
+)
+        batch = batch_obs([observation])
+        for sensor in batch:
+            batch[sensor] = batch[sensor].to(device)
+     
+
         _, actions, _, test_recurrent_hidden_states= actor_critic.act(
             batch,
             test_recurrent_hidden_states,
