@@ -32,7 +32,9 @@ pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
 
 def example():
     env = habitat.Env(
+        #config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
         config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
+        
     )
 
     print("Environment creation successful")
@@ -46,6 +48,7 @@ def example():
         vel = data.data
         update_position(vel[0], vel[1], 1)
         update_attitude(0,vel[2],vel[3],1)
+        print('update position was called')
         #print("position updated")
 
     rospy.init_node("plant_model", anonymous=True)
@@ -59,8 +62,8 @@ def example():
     _z_axis = 2
 
     def update_position(vz, vx, dt):
-        vx=vx*0.3
-        vz=vz*0.3
+        #vx=vx*0.3
+        #vz=vz*0.3
         """ update agent position in xz plane given velocity and delta time"""
         start_pos = env._sim._sim.agents[0].scene_node.absolute_position()
 
@@ -78,9 +81,9 @@ def example():
 
     def update_attitude(roll, pitch, yaw, dt):
         """ update agent orientation given angular velocity and delta time"""
-        roll =0
-        pitch =0
-        yaw=yaw*0.08
+        #roll =0
+        #pitch =0
+        #yaw=yaw*0.08
         ax_roll = np.zeros(3, dtype=np.float32)
         ax_roll[_z_axis] = 1
         env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(roll * dt), ax_roll)
@@ -118,8 +121,8 @@ def example():
         count_steps += 1
         print(count_steps)
         pub_rgb.publish(np.float32(observations["rgb"].ravel()))
-        pub_depth.publish(np.float32(observations["depth"].ravel()*10))
-    
+        pub_depth.publish(np.float32(observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
+        print('rgb was published')
         
         states=env._sim._sim.agents[0].get_state()
 
@@ -128,7 +131,7 @@ def example():
         pose_to_pub=np.float32(np.concatenate((position_to_pub,quaternion_to_pub)))
         pub_pose.publish(pose_to_pub)
         current_time = rospy.Time.now()
-        rospy.sleep(1/20)  # sleep for 0.05 seconds
+        rospy.sleep(0.05)  # sleep for 0.05 seconds
         print(time.time()-prev_time)
 
     print("Episode finished after {} steps.".format(count_steps))
