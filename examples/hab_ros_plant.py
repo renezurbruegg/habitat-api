@@ -100,6 +100,7 @@ def example():
     #rospy.Subscriber("linear_vel_command", numpy_msg(Floats), transform_callback)
 
     while not (bc_plant.env.episode_over or rospy.is_shutdown()):
+        print(flag)
         if flag ==1:
             pub_rgb.publish(np.float32(bc_plant.observations["rgb"].ravel()))
             pub_depth.publish(np.float32(bc_plant.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
@@ -108,9 +109,15 @@ def example():
             depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
             flag = 0
-            rospy.sleep(1)
             continue
+      
+        print('line before wait for message')
+        data = rospy.wait_for_message('linear_vel_command', numpy_msg(Floats), timeout=None)
+        print('velocity heard is ' + str(bc_plant.vel))
+        bc_plant.vel = data.data
+        
         print('hab_ros_plant point_goal before update is '+ str(bc_plant.observations['pointgoal'].ravel()))
+        
         bc_plant.update_position(bc_plant.vel[0], bc_plant.vel[1], 1)
         bc_plant.update_attitude(0,bc_plant.vel[2],bc_plant.vel[3],1)
 
@@ -130,10 +137,11 @@ def example():
         depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
         pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
         
-        data = rospy.wait_for_message('linear_vel_command', numpy_msg(Floats), timeout=None)
-        bc_plant.vel = data.data
-        print('velocity heard is ' + str(bc_plant.vel))
-        #print('depth and point goal published')
+
+        
+       
+        
+       
 
         
 

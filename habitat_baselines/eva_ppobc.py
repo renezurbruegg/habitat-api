@@ -6,7 +6,7 @@
 
 # LICENSE file in the root directory of this source tree.
 import sys
-import os
+import os 
 
 PKG = "numpy_tutorial"
 import roslib
@@ -36,6 +36,8 @@ import cv2
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
+import pickle
+
 sys.path = initial_sys_path
 
 pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
@@ -44,6 +46,11 @@ pub_vel = rospy.Publisher('linear_vel_command', numpy_msg(Floats),queue_size=10)
 rospy.init_node('controller_nn', anonymous=True)
 action_id = 100
 
+global test_recurrent_hidden_states_list 
+test_recurrent_hidden_states_list =[]
+
+global flag
+flag = 1
 
 #global actor_critic
 
@@ -52,7 +59,8 @@ def main():
     global batch
     global not_done_masks
     global test_recurrent_hidden_states
-    global env
+    global obs_list
+    obs_list = []
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
@@ -64,7 +72,7 @@ def main():
     parser.add_argument(
         "--sensors",
         type=str,
-        default="RGB_SENSOR,DEPTH_SENSOR",
+        default="DEPTH_SENSOR",
         help="comma separated string containing different"
         "sensors to use, currently 'RGB_SENSOR' and"
         "'DEPTH_SENSOR' are supported",
@@ -81,11 +89,9 @@ def main():
     '--pth-gpu-id','0', \
     '--num-processes', '1', \
     '--count-test-episodes', '100', \
-    '--task-config', "configs/tasks/pointnav.yaml",\
-    '--sensors','DEPTH_SENSOR' ]
+    '--task-config', "configs/tasks/pointnav.yaml" ]
     args = parser.parse_args(foo)
 
-    #args = parser.parse_args()
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
@@ -109,16 +115,20 @@ def main():
 
     assert len(baseline_configs) > 0, "empty list of datasets"
 
-    env = habitat.Env(
-        config=habitat.get_config(args.task_config)
+    envs = habitat.VectorEnv(
+        make_env_fn=make_env_fn,
+        env_fn_args=tuple(
+            tuple(
+                zip(env_configs, baseline_configs, range(args.num_processes))
+            )
+        ),
     )
 
     ckpt = torch.load(args.model_path, map_location=device)
 
-#get assign actor critic 
-    actor_critic = Policy( 
-        observation_space=env.observation_space,
-        action_space=env.action_space,
+    actor_critic = Policy(
+        observation_space=envs.observation_spaces[0],
+        action_space=envs.action_spaces[0],
         hidden_size=512,
     )
     actor_critic.to(device)
@@ -137,75 +147,79 @@ def main():
 
     ppo.load_state_dict(ckpt["state_dict"])
 
-# convert actor_crtiic to ppo.actor_critic
-
-    # observations = env._sim._sensor_suite.get_observations(sim_obs)
-    # observations.update(
-    #     env._task.sensor_suite.get_observations(
-    #         observations=observations, episode=env.current_episode
-    #     )
-    # )
-    observations = env.reset()
-    env._update_step_stats()
-    sim_obs = env._sim._sim.get_sensor_observations()
-    observation = env._sim._sensor_suite.get_observations(sim_obs)
-    observation.update(
-        env._task.sensor_suite.get_observations(
-            observations=observation, episode=env.current_episode
-        )
-    )
-    observations = [observation]
     actor_critic = ppo.actor_critic
 
+    observations = envs.reset()
     batch = batch_obs(observations)
     for sensor in batch:
         batch[sensor] = batch[sensor].to(device)
+
+    episode_rewards = torch.zeros(envs.num_envs, 1, device=device)
+    episode_spls = torch.zeros(envs.num_envs, 1, device=device)
+    episode_success = torch.zeros(envs.num_envs, 1, device=device)
+    episode_counts = torch.zeros(envs.num_envs, 1, device=device)
+    current_episode_reward = torch.zeros(envs.num_envs, 1, device=device)
 
     test_recurrent_hidden_states = torch.zeros(
         args.num_processes, args.hidden_size, device=device
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
-    rate = rospy.Rate(10)
-
+ 
     
-#get the next action number (actions if more than 1 process) produce actions here
-    _, actions, _, test_recurrent_hidden_states = actor_critic.act(
-        batch,
-        test_recurrent_hidden_states,
-        not_done_masks,
-        deterministic=False,
-    )
     
     def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
-    #print(rospy.get_name(), "Plant heard %s" % str(data.data))
+        print('call back entered in eva_ppobc')
         global actor_critic
         global batch
         global not_done_masks
         global test_recurrent_hidden_states
-        global env
+        global obs_list
+        global test_recurrent_hidden_states_list 
+        global flag
+
+
         observation = {}
-        observation['depth'] =  np.reshape(data.data,(256,256,1))
-        env._update_step_stats()
-        # sim_obs = env._sim._sim.get_sensor_observations()
-        # observation = env._sim._sensor_suite.get_observations(sim_obs)
-        observation.update(
-        env._task.sensor_suite.get_observations(
-            observations=observation, episode=env.current_episode
-        )
-)
+        observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
+        observation['pointgoal'] = data.data[-2:]
+
+        obs_list.append(observation)
+
+        pickle_out = open("ros_obs_list.pickle","wb")
+        pickle.dump(obs_list, pickle_out)
+        pickle_out.close()
+
+        test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
+        pickle_out = open("ros_recurrent_states.pickle","wb")
+        pickle.dump(test_recurrent_hidden_states_list, pickle_out)
+        pickle_out.close()
+        
         batch = batch_obs([observation])
         for sensor in batch:
             batch[sensor] = batch[sensor].to(device)
-     
-
+        if flag ==1:
+            not_done_masks = torch.tensor(
+                [0.0] ,
+                dtype=torch.float,
+                device=device,
+            )
+            flag = 0
+        else:
+            not_done_masks = torch.tensor(
+                [1.0] ,
+                dtype=torch.float,
+                device=device,
+            )
         _, actions, _, test_recurrent_hidden_states= actor_critic.act(
             batch,
             test_recurrent_hidden_states,
             not_done_masks,
-            deterministic=False,
+            deterministic=True,
         )
-
+        
         action_id = actions.item()
+        print("action_id from net is "+str(actions.item()))
+        print(observation['pointgoal'])
+        rospy.sleep(0.25)
         if action_id == 0:
             pub_vel.publish(np.float32([-0.25,0,0,0]))
         elif action_id == 1:
@@ -214,13 +228,10 @@ def main():
             pub_vel.publish(np.float32([0,0,0,-10]))
 
 
-        
-        print("I heard from call back"+str(actions.item()))
         pub_action.publish(actions.item())
         
     
-
-    rospy.Subscriber("depth", numpy_msg(Floats), transform_callback)
+    rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)
     rospy.spin()
 
 
