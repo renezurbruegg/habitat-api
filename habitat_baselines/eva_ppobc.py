@@ -41,7 +41,7 @@ import pickle
 sys.path = initial_sys_path
 
 pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
-pub_vel = rospy.Publisher('linear_vel_command', numpy_msg(Floats),queue_size=10)
+pub_vel = rospy.Publisher('bc_cmd_vel', numpy_msg(Floats),queue_size=10)
 
 rospy.init_node('controller_nn', anonymous=True)
 action_id = 100

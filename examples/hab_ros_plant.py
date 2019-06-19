@@ -106,7 +106,7 @@ def main():
             continue
       
         print('line before wait for message')
-        data = rospy.wait_for_message('linear_vel_command', numpy_msg(Floats), timeout=None)
+        data = rospy.wait_for_message('bc_cmd_vel', numpy_msg(Floats), timeout=None)
         print('velocity heard is ' + str(bc_plant.vel))
         bc_plant.vel = data.data
         
