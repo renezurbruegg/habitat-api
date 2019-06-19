@@ -28,113 +28,115 @@ import time
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
 pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
+pub_depth_and_pointgoal = rospy.Publisher("depth_and_pointgoal", numpy_msg(Floats), queue_size=10)
 
+rospy.init_node("plant_model", anonymous=True)
 
-def example():
-    env = habitat.Env(
-        #config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
-        config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
-        
-    )
-
-    print("Environment creation successful")
-    observations = env.reset()
-
-    # grab a predfined move filter function for the agent
-    env._sim._sim.agents[0].move_filter_fn = env._sim._sim._step_filter
-
-    def transform_callback(data):
-        #print(rospy.get_name(), "Plant heard %s" % str(data.data))
-        vel = data.data
-        update_position(vel[0], vel[1], 1)
-        update_attitude(0,vel[2],vel[3],1)
-        print('update position was called')
-        #print("position updated")
-
-    rospy.init_node("plant_model", anonymous=True)
-    rospy.Subscriber("linear_vel_command", numpy_msg(Floats), transform_callback)
-
-    print("Agent stepping around inside environment.")
-    count_steps = 0
+class habitat_plant:
 
     _x_axis = 0
     _y_axis = 1
     _z_axis = 2
 
-    def update_position(vz, vx, dt):
+    def update_position(self,vz, vx, dt):
         #vx=vx*0.3
         #vz=vz*0.3
         """ update agent position in xz plane given velocity and delta time"""
-        start_pos = env._sim._sim.agents[0].scene_node.absolute_position()
+        start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
 
-        ax = env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, _z_axis]
-        env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
+        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, self._z_axis]
+        self.env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
 
-        ax = env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, _x_axis]
-        env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
+        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, self._x_axis]
+        self.env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
 
-        end_pos = env._sim._sim.agents[0].scene_node.absolute_position()
+        end_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
 
         # can apply or not apply filter
-        filter_end = env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
-        env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
+        filter_end = self.env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
+        self.env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
 
-    def update_attitude(roll, pitch, yaw, dt):
+    def update_attitude(self,roll, pitch, yaw, dt):
         """ update agent orientation given angular velocity and delta time"""
         #roll =0
         #pitch =0
         #yaw=yaw*0.08
         ax_roll = np.zeros(3, dtype=np.float32)
-        ax_roll[_z_axis] = 1
-        env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(roll * dt), ax_roll)
-        env._sim._sim.agents[0].scene_node.normalize()
+        ax_roll[self._z_axis] = 1
+        self.env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(roll * dt), ax_roll)
+        self.env._sim._sim.agents[0].scene_node.normalize()
 
         ax_pitch = np.zeros(3, dtype=np.float32)
-        ax_pitch[_x_axis] = 1
-        env._sim._sim.agents[0].scene_node.rotate_local(
+        ax_pitch[self._x_axis] = 1
+        self.env._sim._sim.agents[0].scene_node.rotate_local(
             np.deg2rad(pitch * dt), ax_pitch
         )
-        env._sim._sim.agents[0].scene_node.normalize()
+        self.env._sim._sim.agents[0].scene_node.normalize()
 
         ax_yaw = np.zeros(3, dtype=np.float32)
-        ax_yaw[_y_axis] = 1
-        env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(yaw * dt), ax_yaw)
-        env._sim._sim.agents[0].scene_node.normalize()
+        ax_yaw[self._y_axis] = 1
+        self.env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(yaw * dt), ax_yaw)
+        self.env._sim._sim.agents[0].scene_node.normalize()
 
-    while not (env.episode_over or rospy.is_shutdown()):
-        # get observations (I think get_observations function is being developed by PR #80)
-        #print(observations.keys())
-        prev_time = time.time()
 
-        env._update_step_stats()
-        print("Destination, distance: {:3f}, theta(radians): {:.2f}".format(
-            observations["pointgoal"][0], observations["pointgoal"][1]))
+    def __init__(self):
+        self.env = habitat.Env(
+            config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
+            )
+        self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
+        self.observations = self.env.reset()
+        self.vel = np.float32([0,0,0,0])
+        print("created object succsefully")
 
-        sim_obs = env._sim._sim.get_sensor_observations()
-        observations = env._sim._sensor_suite.get_observations(sim_obs)
-        observations.update(
-            env._task.sensor_suite.get_observations(
-                observations=observations, episode=env.current_episode
+def example():
+    global bc_plant
+    flag = 1
+    bc_plant = habitat_plant()
+    def transform_callback(data):
+        global bc_plant
+        print("call back was called")
+        bc_plant.vel = data.data
+
+    #rospy.Subscriber("linear_vel_command", numpy_msg(Floats), transform_callback)
+
+    while not (bc_plant.env.episode_over or rospy.is_shutdown()):
+        if flag ==1:
+            pub_rgb.publish(np.float32(bc_plant.observations["rgb"].ravel()))
+            pub_depth.publish(np.float32(bc_plant.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
+            depth_np = np.float32(bc_plant.observations["depth"].ravel())
+            pointgoal_np = np.float32(bc_plant.observations['pointgoal'].ravel())
+            depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
+            pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
+            flag = 0
+            rospy.sleep(1)
+            continue
+        print('hab_ros_plant point_goal before update is '+ str(bc_plant.observations['pointgoal'].ravel()))
+        bc_plant.update_position(bc_plant.vel[0], bc_plant.vel[1], 1)
+        bc_plant.update_attitude(0,bc_plant.vel[2],bc_plant.vel[3],1)
+
+        bc_plant.env._update_step_stats()
+        sim_obs =  bc_plant.env._sim._sim.get_sensor_observations()
+        bc_plant.observations = bc_plant.env._sim._sensor_suite.get_observations(sim_obs)
+        bc_plant.observations.update(
+            bc_plant.env._task.sensor_suite.get_observations(
+                observations=bc_plant.observations, episode=bc_plant.env.current_episode
             )
         )
-        
-        count_steps += 1
-        print(count_steps)
-        pub_rgb.publish(np.float32(observations["rgb"].ravel()))
-        pub_depth.publish(np.float32(observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
-        print('rgb was published')
-        
-        states=env._sim._sim.agents[0].get_state()
 
-        position_to_pub = np.float32(states.position)
-        quaternion_to_pub=quaternion.as_float_array(states.rotation)
-        pose_to_pub=np.float32(np.concatenate((position_to_pub,quaternion_to_pub)))
-        pub_pose.publish(pose_to_pub)
-        current_time = rospy.Time.now()
-        rospy.sleep(0.05)  # sleep for 0.05 seconds
-        print(time.time()-prev_time)
+        pub_rgb.publish(np.float32(bc_plant.observations["rgb"].ravel()))
+        pub_depth.publish(np.float32(bc_plant.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
+        depth_np = np.float32(bc_plant.observations["depth"].ravel())
+        pointgoal_np = np.float32(bc_plant.observations['pointgoal'].ravel())
+        depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
+        pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
+        
+        data = rospy.wait_for_message('linear_vel_command', numpy_msg(Floats), timeout=None)
+        bc_plant.vel = data.data
+        print('velocity heard is ' + str(bc_plant.vel))
+        #print('depth and point goal published')
 
-    print("Episode finished after {} steps.".format(count_steps))
+        
+
 
 
 # currently an infinite loop
