@@ -4,13 +4,31 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+# LICENSE file in the root directory of this source tree.
+import sys
+import os 
+
+PKG = "numpy_tutorial"
+import roslib
+
+roslib.load_manifest(PKG)
+
+import rospy
+from rospy.numpy_msg import numpy_msg
+from rospy_tutorials.msg import Floats
+from std_msgs.msg import Int32
+import numpy as np
+
+initial_sys_path = sys.path
+sys.path = [b for b in sys.path if "2.7" not in b]
+sys.path.insert(0, os.getcwd())
+
 import argparse
-import time
+
 import torch
 import time
 
 import habitat
-from config.default import get_config as cfg_baseline
 from habitat.config.default import get_config
 from config.default import get_config as cfg_baseline
 import cv2
@@ -18,23 +36,32 @@ import cv2
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
-from train_ppo import make_env_fn
-import cv2
-import matplotlib.pyplot as plt
-
 import pickle
-global obs_list
-obs_list = []
+
+sys.path = initial_sys_path
+
+pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
+pub_vel = rospy.Publisher('bc_cmd_vel', numpy_msg(Floats),queue_size=10)
+
+rospy.init_node('controller_nn', anonymous=True)
+action_id = 100
+
 global test_recurrent_hidden_states_list 
 test_recurrent_hidden_states_list =[]
 
-global mask_list 
-mask_list =[]
+global flag
+flag = 1
 
-def transform_rgb_bgr(image):
-    return image[:, :, [2, 1, 0]]
+#global actor_critic
 
 def main():
+    global actor_critic
+    global batch
+    global not_done_masks
+    global test_recurrent_hidden_states
+    global obs_list
+    obs_list = []
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
     parser.add_argument("--sim-gpu-id", type=int, required=True)
@@ -64,19 +91,7 @@ def main():
     '--count-test-episodes', '100', \
     '--task-config', "configs/tasks/pointnav.yaml" ]
     args = parser.parse_args(foo)
-    #args = parser.parse_args()
 
- 
-   
-    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/ckpt.2.pth", \
-    '--sim-gpu-id', '0',\
-    '--pth-gpu-id','0', \
-    '--num-processes', '1', \
-    '--count-test-episodes', '5', \
-    '--task-config', "configs/tasks/pointnav_rgbd.yaml" ]
-    args = parser.parse_args(foo)
-
-    #args = parser.parse_args()
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
@@ -115,7 +130,6 @@ def main():
         observation_space=envs.observation_spaces[0],
         action_space=envs.action_spaces[0],
         hidden_size=512,
-        goal_sensor_uuid=env_configs[0].TASK.GOAL_SENSOR_UUID,
     )
     actor_critic.to(device)
 
@@ -140,86 +154,78 @@ def main():
     for sensor in batch:
         batch[sensor] = batch[sensor].to(device)
 
-    episode_rewards = torch.zeros(envs.num_envs, 1, device=device)
-    episode_spls = torch.zeros(envs.num_envs, 1, device=device)
-    episode_success = torch.zeros(envs.num_envs, 1, device=device)
-    episode_counts = torch.zeros(envs.num_envs, 1, device=device)
-    current_episode_reward = torch.zeros(envs.num_envs, 1, device=device)
-
     test_recurrent_hidden_states = torch.zeros(
         args.num_processes, args.hidden_size, device=device
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
+ 
+    
+    def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
+        print('call back entered in eva_ppobc')
+        global actor_critic
+        global batch
+        global not_done_masks
+        global test_recurrent_hidden_states
+        global obs_list
+        global test_recurrent_hidden_states_list 
+        global flag
 
-    while episode_counts.sum() < args.count_test_episodes:
-        test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
-        pickle_out = open("hab_recurrent_states.pickle","wb")
-        pickle.dump(test_recurrent_hidden_states_list, pickle_out)
-        pickle_out.close()
-        obs_list.append(observations[0])
-        pickle_out = open("hab_obs_list.pickle","wb")
+
+        observation = {}
+        observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
+        observation['pointgoal'] = data.data[-2:]
+
+        obs_list.append(observation)
+
+        pickle_out = open("ros_obs_list.pickle","wb")
         pickle.dump(obs_list, pickle_out)
         pickle_out.close()
 
-        mask_list.append(not_done_masks)
-        pickle_out = open("hab_mask_list.pickle","wb")
-        pickle.dump(mask_list, pickle_out)
+        test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
+        pickle_out = open("ros_recurrent_states.pickle","wb")
+        pickle.dump(test_recurrent_hidden_states_list, pickle_out)
         pickle_out.close()
         
-        with torch.no_grad():
-            _, actions, _, test_recurrent_hidden_states = actor_critic.act(
-                batch,
-                test_recurrent_hidden_states,
-                not_done_masks,
-                deterministic=True,
-            )
-        
-        print ("action_id is " + str(actions.item()))
-        print('point goal is ' + str(observations[0]['pointgoal']))
-
-        outputs = envs.step([a[0].item() for a in actions])
-
-        observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
-
-        #for visualizing where robot is going
-        #cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
-        cv2.imshow("Depth", observations[0]["depth"])
-        cv2.waitKey(100)
-        time.sleep(0.2)
-      
-            
-
-        batch = batch_obs(observations)
+        batch = batch_obs([observation])
         for sensor in batch:
             batch[sensor] = batch[sensor].to(device)
-
-        not_done_masks = torch.tensor(
-            [[0.0] if done else [1.0] for done in dones],
-            dtype=torch.float,
-            device=device,
+        if flag ==1:
+            not_done_masks = torch.tensor(
+                [0.0] ,
+                dtype=torch.float,
+                device=device,
+            )
+            flag = 0
+        else:
+            not_done_masks = torch.tensor(
+                [1.0] ,
+                dtype=torch.float,
+                device=device,
+            )
+        _, actions, _, test_recurrent_hidden_states= actor_critic.act(
+            batch,
+            test_recurrent_hidden_states,
+            not_done_masks,
+            deterministic=True,
         )
+        
+        action_id = actions.item()
+        print("action_id from net is "+str(actions.item()))
+        print(observation['pointgoal'])
+        rospy.sleep(0.25)
+        if action_id == 0:
+            pub_vel.publish(np.float32([-0.25,0,0,0]))
+        elif action_id == 1:
+            pub_vel.publish(np.float32([0,0,0,10]))
+        elif action_id ==2:
+            pub_vel.publish(np.float32([0,0,0,-10]))
 
-        for i in range(not_done_masks.shape[0]):
-            if not_done_masks[i].item() == 0:
-                episode_spls[i] += infos[i]["spl"]
-                if infos[i]["spl"] > 0:
-                    episode_success[i] += 1
 
-        rewards = torch.tensor(
-            rewards, dtype=torch.float, device=device
-        ).unsqueeze(1)
-        current_episode_reward += rewards
-        episode_rewards += (1 - not_done_masks) * current_episode_reward
-        episode_counts += 1 - not_done_masks
-        current_episode_reward *= not_done_masks
-
-    episode_reward_mean = (episode_rewards / episode_counts).mean().item()
-    episode_spl_mean = (episode_spls / episode_counts).mean().item()
-    episode_success_mean = (episode_success / episode_counts).mean().item()
-
-    print("Average episode reward: {:.6f}".format(episode_reward_mean))
-    print("Average episode success: {:.6f}".format(episode_success_mean))
-    print("Average episode spl: {:.6f}".format(episode_spl_mean))
+        pub_action.publish(actions.item())
+        
+    
+    rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)
+    rospy.spin()
 
 
 if __name__ == "__main__":
