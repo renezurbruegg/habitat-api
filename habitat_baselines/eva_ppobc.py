@@ -154,18 +154,11 @@ def main():
     for sensor in batch:
         batch[sensor] = batch[sensor].to(device)
 
-    episode_rewards = torch.zeros(envs.num_envs, 1, device=device)
-    episode_spls = torch.zeros(envs.num_envs, 1, device=device)
-    episode_success = torch.zeros(envs.num_envs, 1, device=device)
-    episode_counts = torch.zeros(envs.num_envs, 1, device=device)
-    current_episode_reward = torch.zeros(envs.num_envs, 1, device=device)
-
     test_recurrent_hidden_states = torch.zeros(
         args.num_processes, args.hidden_size, device=device
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
  
-    
     
     def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
         print('call back entered in eva_ppobc')

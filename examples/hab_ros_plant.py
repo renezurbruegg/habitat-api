@@ -88,17 +88,11 @@ class habitat_plant:
         self.vel = np.float32([0,0,0,0])
         print("created object succsefully")
 
-def example():
-    global bc_plant
-    flag = 1
+
+def main():
     bc_plant = habitat_plant()
-    def transform_callback(data):
-        global bc_plant
-        print("call back was called")
-        bc_plant.vel = data.data
-
-    #rospy.Subscriber("linear_vel_command", numpy_msg(Floats), transform_callback)
-
+    flag = 1
+   
     while not (bc_plant.env.episode_over or rospy.is_shutdown()):
         print(flag)
         if flag ==1:
@@ -121,7 +115,7 @@ def example():
         bc_plant.update_position(bc_plant.vel[0], bc_plant.vel[1], 1)
         bc_plant.update_attitude(0,bc_plant.vel[2],bc_plant.vel[3],1)
 
-        bc_plant.env._update_step_stats()
+        bc_plant.env._update_step_stats() #think this increments episode count
         sim_obs =  bc_plant.env._sim._sim.get_sensor_observations()
         bc_plant.observations = bc_plant.env._sim._sensor_suite.get_observations(sim_obs)
         bc_plant.observations.update(
@@ -135,18 +129,7 @@ def example():
         depth_np = np.float32(bc_plant.observations["depth"].ravel())
         pointgoal_np = np.float32(bc_plant.observations['pointgoal'].ravel())
         depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
-        pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-        
+        pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))   
 
-        
-       
-        
-       
-
-        
-
-
-
-# currently an infinite loop
 if __name__ == "__main__":
-    example()
+    main()
