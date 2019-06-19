@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
-
+import time
 import torch
 
 import habitat
@@ -14,7 +14,11 @@ from habitat.config.default import get_config
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
 from train_ppo import make_env_fn
+import cv2
+import matplotlib.pyplot as plt
 
+def transform_rgb_bgr(image):
+    return image[:, :, [2, 1, 0]]
 
 def main():
     parser = argparse.ArgumentParser()
@@ -38,7 +42,18 @@ def main():
         default="configs/tasks/pointnav.yaml",
         help="path to config yaml containing information about task",
     )
-    args = parser.parse_args()
+
+ 
+   
+    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/ckpt.2.pth", \
+    '--sim-gpu-id', '0',\
+    '--pth-gpu-id','0', \
+    '--num-processes', '1', \
+    '--count-test-episodes', '5', \
+    '--task-config', "configs/tasks/pointnav_rgbd.yaml" ]
+    args = parser.parse_args(foo)
+
+    #args = parser.parse_args()
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
@@ -124,6 +139,13 @@ def main():
         outputs = envs.step([a[0].item() for a in actions])
 
         observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
+
+        cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
+        cv2.waitKey(900)
+
+        time.sleep(1)
+
+        print ("bc after plotting")
         batch = batch_obs(observations)
         for sensor in batch:
             batch[sensor] = batch[sensor].to(device)
