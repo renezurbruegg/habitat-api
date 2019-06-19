@@ -46,21 +46,12 @@ pub_vel = rospy.Publisher('bc_cmd_vel', numpy_msg(Floats),queue_size=10)
 rospy.init_node('controller_nn', anonymous=True)
 action_id = 100
 
-global test_recurrent_hidden_states_list 
-test_recurrent_hidden_states_list =[]
 
-global flag
 flag = 1
 
 #global actor_critic
 
 def main():
-    global actor_critic
-    global batch
-    global not_done_masks
-    global test_recurrent_hidden_states
-    global obs_list
-    obs_list = []
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
@@ -163,29 +154,16 @@ def main():
     
     def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
         print('call back entered in eva_ppobc')
-        global actor_critic
-        global batch
-        global not_done_masks
-        global test_recurrent_hidden_states
-        global obs_list
-        global test_recurrent_hidden_states_list 
+        nonlocal actor_critic
+        nonlocal batch
+        nonlocal not_done_masks
+        nonlocal test_recurrent_hidden_states
         global flag
 
 
         observation = {}
         observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
         observation['pointgoal'] = data.data[-2:]
-
-        obs_list.append(observation)
-
-        pickle_out = open("ros_obs_list.pickle","wb")
-        pickle.dump(obs_list, pickle_out)
-        pickle_out.close()
-
-        test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
-        pickle_out = open("ros_recurrent_states.pickle","wb")
-        pickle.dump(test_recurrent_hidden_states_list, pickle_out)
-        pickle_out.close()
         
         batch = batch_obs([observation])
         for sensor in batch:
