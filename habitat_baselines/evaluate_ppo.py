@@ -18,6 +18,15 @@ from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
 
+import pickle
+global obs_list
+obs_list = []
+global test_recurrent_hidden_states_list 
+test_recurrent_hidden_states_list =[]
+
+global mask_list 
+mask_list =[]
+
 def transform_rgb_bgr(image):
     return image[:, :, [2, 1, 0]]
 
@@ -32,7 +41,7 @@ def main():
     parser.add_argument(
         "--sensors",
         type=str,
-        default="RGB_SENSOR,DEPTH_SENSOR",
+        default="DEPTH_SENSOR",
         help="comma separated string containing different"
         "sensors to use, currently 'RGB_SENSOR' and"
         "'DEPTH_SENSOR' are supported",
@@ -44,12 +53,12 @@ def main():
         help="path to config yaml containing information about task",
     )
     
-    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/rgbd.pth", \
+    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth", \
     '--sim-gpu-id', '0',\
     '--pth-gpu-id','0', \
     '--num-processes', '1', \
     '--count-test-episodes', '100', \
-    '--task-config', "configs/tasks/pointnav_gibson.yaml" ]
+    '--task-config', "configs/tasks/pointnav.yaml" ]
     args = parser.parse_args(foo)
     #args = parser.parse_args()
 
@@ -126,24 +135,41 @@ def main():
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
 
     while episode_counts.sum() < args.count_test_episodes:
+        test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
+        pickle_out = open("hab_recurrent_states.pickle","wb")
+        pickle.dump(test_recurrent_hidden_states_list, pickle_out)
+        pickle_out.close()
+        obs_list.append(observations[0])
+        pickle_out = open("hab_obs_list.pickle","wb")
+        pickle.dump(obs_list, pickle_out)
+        pickle_out.close()
+
+        mask_list.append(not_done_masks)
+        pickle_out = open("hab_mask_list.pickle","wb")
+        pickle.dump(mask_list, pickle_out)
+        pickle_out.close()
+        
         with torch.no_grad():
             _, actions, _, test_recurrent_hidden_states = actor_critic.act(
                 batch,
                 test_recurrent_hidden_states,
                 not_done_masks,
-                deterministic=False,
+                deterministic=True,
             )
+        
+        print ("action_id is " + str(actions.item()))
+        print('point goal is ' + str(observations[0]['pointgoal']))
 
         outputs = envs.step([a[0].item() for a in actions])
 
         observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
 
         #for visualizing where robot is going
-        cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
+        #cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
+        cv2.imshow("Depth", observations[0]["depth"])
         cv2.waitKey(100)
         time.sleep(0.2)
-        print ("bc after plotting")
-       
+      
             
 
         batch = batch_obs(observations)
