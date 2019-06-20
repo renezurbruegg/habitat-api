@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 import sys
 import os
+import threading
 
 PKG = "numpy_tutorial"
 import roslib
@@ -32,7 +33,7 @@ pub_depth_and_pointgoal = rospy.Publisher("depth_and_pointgoal", numpy_msg(Float
 
 rospy.init_node("plant_model", anonymous=True)
 
-class habitat_plant:
+class habitat_plant(threading.Thread):
 
     _x_axis = 0
     _y_axis = 1
@@ -80,6 +81,7 @@ class habitat_plant:
 
 
     def __init__(self):
+        threading.Thread.__init__(self)
         self.env = habitat.Env(
             config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
             )
@@ -87,24 +89,27 @@ class habitat_plant:
         self.observations = self.env.reset()
         self.vel = np.float32([0,0,0,0])
         print("created object succsefully")
+    
+    def run(self):
+        while not rospy.is_shutdown():
+            pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
+            pub_depth.publish(np.float32(self.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
+            depth_np = np.float32(self.observations["depth"].ravel())
+            pointgoal_np = np.float32(self.observations['pointgoal'].ravel())
+            depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
+            pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
+            rospy.sleep(0.2)
+
 
 
 def main():
     bc_plant = habitat_plant()
-    flag = 1
-   
+    bc_plant.start()
+    print('continued after starting the publisher in background')
+
     #while not (bc_plant.env.episode_over or rospy.is_shutdown()):
     while not rospy.is_shutdown():
-        if flag ==1:
-            pub_rgb.publish(np.float32(bc_plant.observations["rgb"].ravel()))
-            pub_depth.publish(np.float32(bc_plant.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
-            depth_np = np.float32(bc_plant.observations["depth"].ravel())
-            pointgoal_np = np.float32(bc_plant.observations['pointgoal'].ravel())
-            depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
-            pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-            flag = 0
-            continue
-      
+
         print('line before wait for message')
         data = rospy.wait_for_message('bc_cmd_vel', numpy_msg(Floats), timeout=None)
         print('velocity heard is ' + str(bc_plant.vel))
@@ -122,12 +127,6 @@ def main():
             )
         )
 
-        pub_rgb.publish(np.float32(bc_plant.observations["rgb"].ravel()))
-        pub_depth.publish(np.float32(bc_plant.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
-        depth_np = np.float32(bc_plant.observations["depth"].ravel())
-        pointgoal_np = np.float32(bc_plant.observations['pointgoal'].ravel())
-        depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
-        pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))   
 
 if __name__ == "__main__":
     main()

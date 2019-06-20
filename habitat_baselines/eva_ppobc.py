@@ -180,7 +180,7 @@ def main():
         action_id = actions.item()
         print("action_id from net is "+str(actions.item()))
         print(observation['pointgoal'])
-        rospy.sleep(0.05)
+        #rospy.sleep(0.05)
         if action_id == 0:
             pub_vel.publish(np.float32([-0.25,0,0,0]))
         elif action_id == 1:
