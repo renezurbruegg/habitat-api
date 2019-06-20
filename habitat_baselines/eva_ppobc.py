@@ -16,7 +16,6 @@ roslib.load_manifest(PKG)
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
-from std_msgs.msg import Int32
 import numpy as np
 
 initial_sys_path = sys.path
@@ -26,30 +25,21 @@ sys.path.insert(0, os.getcwd())
 import argparse
 
 import torch
-import time
-
 import habitat
 from habitat.config.default import get_config
 from config.default import get_config as cfg_baseline
-import cv2
 
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
-import pickle
+
 
 sys.path = initial_sys_path
 
-pub_action = rospy.Publisher("action_id", Int32, queue_size=10)
 pub_vel = rospy.Publisher('bc_cmd_vel', numpy_msg(Floats),queue_size=10)
-
 rospy.init_node('controller_nn', anonymous=True)
-action_id = 100
-
 
 flag = 1
-
-#global actor_critic
 
 def main():
 
@@ -160,7 +150,6 @@ def main():
         nonlocal test_recurrent_hidden_states
         global flag
 
-
         observation = {}
         observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
         observation['pointgoal'] = data.data[-2:]
@@ -191,7 +180,7 @@ def main():
         action_id = actions.item()
         print("action_id from net is "+str(actions.item()))
         print(observation['pointgoal'])
-        rospy.sleep(0.25)
+        rospy.sleep(0.05)
         if action_id == 0:
             pub_vel.publish(np.float32([-0.25,0,0,0]))
         elif action_id == 1:
@@ -199,8 +188,6 @@ def main():
         elif action_id ==2:
             pub_vel.publish(np.float32([0,0,0,-10]))
 
-
-        pub_action.publish(actions.item())
         
     
     rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)

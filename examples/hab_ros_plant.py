@@ -58,8 +58,8 @@ class habitat_plant:
 
     def update_attitude(self,roll, pitch, yaw, dt):
         """ update agent orientation given angular velocity and delta time"""
-        #roll =0
-        #pitch =0
+        roll =0
+        pitch =0
         #yaw=yaw*0.08
         ax_roll = np.zeros(3, dtype=np.float32)
         ax_roll[self._z_axis] = 1
@@ -93,8 +93,8 @@ def main():
     bc_plant = habitat_plant()
     flag = 1
    
-    while not (bc_plant.env.episode_over or rospy.is_shutdown()):
-        print(flag)
+    #while not (bc_plant.env.episode_over or rospy.is_shutdown()):
+    while not rospy.is_shutdown():
         if flag ==1:
             pub_rgb.publish(np.float32(bc_plant.observations["rgb"].ravel()))
             pub_depth.publish(np.float32(bc_plant.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
@@ -109,8 +109,6 @@ def main():
         data = rospy.wait_for_message('bc_cmd_vel', numpy_msg(Floats), timeout=None)
         print('velocity heard is ' + str(bc_plant.vel))
         bc_plant.vel = data.data
-        
-        print('hab_ros_plant point_goal before update is '+ str(bc_plant.observations['pointgoal'].ravel()))
         
         bc_plant.update_position(bc_plant.vel[0], bc_plant.vel[1], 1)
         bc_plant.update_attitude(0,bc_plant.vel[2],bc_plant.vel[3],1)
