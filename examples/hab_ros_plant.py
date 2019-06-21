@@ -4,27 +4,22 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import sys
-import os
 import threading
 
-PKG = "numpy_tutorial"
 import roslib
 
-roslib.load_manifest(PKG)
+# roslib.load_manifest(PKG)
 
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 
-sys.path = [b for b in sys.path if "2.7" not in b]
-sys.path.insert(0, os.getcwd())
+sys.path = [
+    b for b in sys.path if "2.7" not in b
+]  # remove path's related to ROS from environment or else certain packages like cv2 can't be imported
 
 import habitat
-import pickle
-import matplotlib.pyplot as plt
 import numpy as np
-import quaternion
-import time
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
@@ -128,11 +123,13 @@ class habitat_plant(threading.Thread):
 
 def main():
     bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
-    bc_plant.start() #start a different thread that publishes agent's observations
+    bc_plant.start()  # start a different thread that publishes agent's observations
 
     while not rospy.is_shutdown():
-        
-        bc_plant.vel = rospy.wait_for_message("bc_cmd_vel", numpy_msg(Floats), timeout=None).data
+
+        bc_plant.vel = rospy.wait_for_message(
+            "bc_cmd_vel", numpy_msg(Floats), timeout=None
+        ).data
         bc_plant.update_position()
         bc_plant.update_attitude()
 
