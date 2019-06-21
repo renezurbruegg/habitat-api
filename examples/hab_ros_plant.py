@@ -63,7 +63,6 @@ class habitat_plant(threading.Thread):
 
     def update_position(self):
 
-        print("in update position loop")
         vz = self.vel[0]
         vx = self.vel[1]
         dt = self.dt
@@ -124,21 +123,18 @@ class habitat_plant(threading.Thread):
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-            rospy.sleep(0.01)
+            rospy.sleep(0.005)
 
 
 def main():
     bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
-    bc_plant.start()
+    bc_plant.start() #start a different thread that publishes agent's observations
 
     while not rospy.is_shutdown():
-        data = rospy.wait_for_message("bc_cmd_vel", numpy_msg(Floats), timeout=None)
-        print("velocity heard is " + str(bc_plant.vel))
-        bc_plant.vel = data.data
-
+        
+        bc_plant.vel = rospy.wait_for_message("bc_cmd_vel", numpy_msg(Floats), timeout=None).data
         bc_plant.update_position()
         bc_plant.update_attitude()
-        bc_plant.render()
 
 
 if __name__ == "__main__":
