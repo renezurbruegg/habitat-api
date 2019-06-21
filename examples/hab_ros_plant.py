@@ -29,9 +29,12 @@ import time
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
 pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
-pub_depth_and_pointgoal = rospy.Publisher("depth_and_pointgoal", numpy_msg(Floats), queue_size=10)
+pub_depth_and_pointgoal = rospy.Publisher(
+    "depth_and_pointgoal", numpy_msg(Floats), queue_size=10
+)
 
 rospy.init_node("plant_model", anonymous=True)
+
 
 class habitat_plant(threading.Thread):
 
@@ -39,16 +42,42 @@ class habitat_plant(threading.Thread):
     _y_axis = 1
     _z_axis = 2
 
-    def update_position(self,vz, vx, dt):
-        #vx=vx*0.3
-        #vz=vz*0.3
-        """ update agent position in xz plane given velocity and delta time"""
+    def __init__(self, env_config_file):
+        threading.Thread.__init__(self)
+        self.env = habitat.Env(config=habitat.get_config(env_config_file))
+        self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
+        self.observations = self.env.reset()
+        self.vel = np.float32([0, 0, 0, 0])
+        self.dt = 1
+        print("created habitat_plant succsefully")
+
+    def render(self):
+        self.env._update_step_stats()  # think this increments episode count
+        sim_obs = self.env._sim._sim.get_sensor_observations()
+        self.observations = self.env._sim._sensor_suite.get_observations(sim_obs)
+        self.observations.update(
+            self.env._task.sensor_suite.get_observations(
+                observations=self.observations, episode=self.env.current_episode
+            )
+        )
+
+    def update_position(self):
+
+        print("in update position loop")
+        vz = self.vel[0]
+        vx = self.vel[1]
+        dt = self.dt
+
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
 
-        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, self._z_axis]
+        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[
+            0:3, self._z_axis
+        ]
         self.env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
 
-        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[0:3, self._x_axis]
+        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[
+            0:3, self._x_axis
+        ]
         self.env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
 
         end_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
@@ -56,15 +85,20 @@ class habitat_plant(threading.Thread):
         # can apply or not apply filter
         filter_end = self.env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
         self.env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
+        self.render()
 
-    def update_attitude(self,roll, pitch, yaw, dt):
+    def update_attitude(self):
         """ update agent orientation given angular velocity and delta time"""
-        roll =0
-        pitch =0
-        #yaw=yaw*0.08
+        roll = 0  # temporary ban roll and pitch motion
+        pitch = 0
+        yaw = self.vel[3]
+        dt = self.dt
+
         ax_roll = np.zeros(3, dtype=np.float32)
         ax_roll[self._z_axis] = 1
-        self.env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(roll * dt), ax_roll)
+        self.env._sim._sim.agents[0].scene_node.rotate_local(
+            np.deg2rad(roll * dt), ax_roll
+        )
         self.env._sim._sim.agents[0].scene_node.normalize()
 
         ax_pitch = np.zeros(3, dtype=np.float32)
@@ -76,56 +110,35 @@ class habitat_plant(threading.Thread):
 
         ax_yaw = np.zeros(3, dtype=np.float32)
         ax_yaw[self._y_axis] = 1
-        self.env._sim._sim.agents[0].scene_node.rotate_local(np.deg2rad(yaw * dt), ax_yaw)
+        self.env._sim._sim.agents[0].scene_node.rotate_local(
+            np.deg2rad(yaw * dt), ax_yaw
+        )
         self.env._sim._sim.agents[0].scene_node.normalize()
+        self.render()
 
-
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.env = habitat.Env(
-            config=habitat.get_config("configs/tasks/pointnav_rgbd.yaml")
-            )
-        self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
-        self.observations = self.env.reset()
-        self.vel = np.float32([0,0,0,0])
-        print("created object succsefully")
-    
     def run(self):
         while not rospy.is_shutdown():
             pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
-            pub_depth.publish(np.float32(self.observations["depth"].ravel()))#change to not multiply by 10 for eva_baseline to work
+            pub_depth.publish(np.float32(self.observations["depth"].ravel()))
             depth_np = np.float32(self.observations["depth"].ravel())
-            pointgoal_np = np.float32(self.observations['pointgoal'].ravel())
-            depth_pointgoal_np = np.concatenate((depth_np,pointgoal_np))
+            pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
+            depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-            rospy.sleep(0.2)
-
+            rospy.sleep(0.01)
 
 
 def main():
-    bc_plant = habitat_plant()
+    bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
     bc_plant.start()
-    print('continued after starting the publisher in background')
 
-    #while not (bc_plant.env.episode_over or rospy.is_shutdown()):
     while not rospy.is_shutdown():
-
-        print('line before wait for message')
-        data = rospy.wait_for_message('bc_cmd_vel', numpy_msg(Floats), timeout=None)
-        print('velocity heard is ' + str(bc_plant.vel))
+        data = rospy.wait_for_message("bc_cmd_vel", numpy_msg(Floats), timeout=None)
+        print("velocity heard is " + str(bc_plant.vel))
         bc_plant.vel = data.data
-        
-        bc_plant.update_position(bc_plant.vel[0], bc_plant.vel[1], 1)
-        bc_plant.update_attitude(0,bc_plant.vel[2],bc_plant.vel[3],1)
 
-        bc_plant.env._update_step_stats() #think this increments episode count
-        sim_obs =  bc_plant.env._sim._sim.get_sensor_observations()
-        bc_plant.observations = bc_plant.env._sim._sensor_suite.get_observations(sim_obs)
-        bc_plant.observations.update(
-            bc_plant.env._task.sensor_suite.get_observations(
-                observations=bc_plant.observations, episode=bc_plant.env.current_episode
-            )
-        )
+        bc_plant.update_position()
+        bc_plant.update_attitude()
+        bc_plant.render()
 
 
 if __name__ == "__main__":
