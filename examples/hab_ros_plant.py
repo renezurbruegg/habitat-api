@@ -129,7 +129,7 @@ def main():
     while not rospy.is_shutdown():
 
         data = rospy.wait_for_message(
-            "bc_cmd_vel", Twist, timeout=None
+            "cmd_vel", Twist, timeout=None
         )
 
         bc_plant.vel[0] = data.linear.z
