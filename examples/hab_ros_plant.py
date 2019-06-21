@@ -13,6 +13,7 @@ import roslib
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
+from geometry_msgs.msg import Twist
 
 sys.path = [
     b for b in sys.path if "2.7" not in b
@@ -85,7 +86,7 @@ class habitat_plant(threading.Thread):
         """ update agent orientation given angular velocity and delta time"""
         roll = 0  # temporary ban roll and pitch motion
         pitch = 0
-        yaw = self.vel[3]
+        yaw = self.vel[3]*0.4
         dt = self.dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
@@ -113,7 +114,7 @@ class habitat_plant(threading.Thread):
     def run(self):
         while not rospy.is_shutdown():
             pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
-            pub_depth.publish(np.float32(self.observations["depth"].ravel()))
+            pub_depth.publish(np.float32(self.observations["depth"].ravel())*10)
             depth_np = np.float32(self.observations["depth"].ravel())
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
@@ -127,9 +128,14 @@ def main():
 
     while not rospy.is_shutdown():
 
-        bc_plant.vel = rospy.wait_for_message(
-            "bc_cmd_vel", numpy_msg(Floats), timeout=None
-        ).data
+        data = rospy.wait_for_message(
+            "bc_cmd_vel", Twist, timeout=None
+        )
+
+        bc_plant.vel[0] = data.linear.z
+        bc_plant.vel[1] = data.linear.x
+        bc_plant.vel[2] = data.angular.x
+        bc_plant.vel[3] = data.angular.y
         bc_plant.update_position()
         bc_plant.update_attitude()
 
