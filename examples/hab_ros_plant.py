@@ -86,7 +86,7 @@ class habitat_plant(threading.Thread):
         """ update agent orientation given angular velocity and delta time"""
         roll = 0  # temporary ban roll and pitch motion
         pitch = 0
-        yaw = self.vel[3]*0.4
+        yaw = self.vel[3]
         dt = self.dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
@@ -119,6 +119,7 @@ class habitat_plant(threading.Thread):
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
+            print('publish loop ran')
             rospy.sleep(0.005)
 
 
@@ -132,10 +133,11 @@ def main():
             "cmd_vel", Twist, timeout=None
         )
 
-        bc_plant.vel[0] = data.linear.z
-        bc_plant.vel[1] = data.linear.x
-        bc_plant.vel[2] = data.angular.x
-        bc_plant.vel[3] = data.angular.y
+        bc_plant.vel[0] = -data.linear.x
+        bc_plant.vel[1] = data.linear.y
+        bc_plant.vel[2] = data.angular.y
+        bc_plant.vel[3] = -data.angular.z
+        print('I heard new cmd_vel which is ' + str(bc_plant.vel))
         bc_plant.update_position()
         bc_plant.update_attitude()
 
