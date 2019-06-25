@@ -21,6 +21,7 @@ sys.path = [
 
 import habitat
 import numpy as np
+import time
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
@@ -44,7 +45,7 @@ class habitat_plant(threading.Thread):
         self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
         self.observations = self.env.reset()
         self.vel = np.float32([0, 0, 0, 0])
-        self.dt = 1
+        self.dt = 0.00478
         print("created habitat_plant succsefully")
 
     def render(self):
@@ -119,7 +120,7 @@ class habitat_plant(threading.Thread):
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-            print('publish loop ran')
+            #print('publish loop ran')
             rospy.sleep(0.05)
 
 
@@ -129,7 +130,7 @@ def callback(data,args):
     args.vel[1] = data.linear.y
     args.vel[2] = data.angular.y
     args.vel[3] = data.angular.z
-    print('inside call back args vel is '+ str(args.vel))
+    #print('inside call back args vel is '+ str(args.vel))
 
 def main():
     bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
@@ -138,7 +139,7 @@ def main():
     rospy.Subscriber('cmd_vel',Twist,callback,(bc_plant))
 
     while not rospy.is_shutdown():
-
+        st = time.time()
         # data = rospy.wait_for_message(
         #     "cmd_vel", Twist, timeout=None
         # )
@@ -148,9 +149,10 @@ def main():
         # bc_plant.vel[2] = data.angular.y
         # bc_plant.vel[3] = data.angular.z
         # print('I heard new cmd_vel which is ' + str(bc_plant.vel))
-        print('bc_plant velocity is '+ str(bc_plant.vel))
+        #print('bc_plant velocity is '+ str(bc_plant.vel))
         bc_plant.update_position()
         bc_plant.update_attitude()
+        print(time.time()-st)
         
 
 
