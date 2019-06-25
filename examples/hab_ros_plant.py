@@ -84,7 +84,7 @@ class habitat_plant(threading.Thread):
 
     def update_attitude(self):
         """ update agent orientation given angular velocity and delta time"""
-        roll = 0  # temporary ban roll and pitch motion
+        roll = 0  # temporarily ban roll and pitch motion
         pitch = 0
         yaw = self.vel[3]
         dt = self.dt
@@ -123,23 +123,35 @@ class habitat_plant(threading.Thread):
             rospy.sleep(0.05)
 
 
+
+def callback(data,args):
+    args.vel[0] = -data.linear.x
+    args.vel[1] = data.linear.y
+    args.vel[2] = data.angular.y
+    args.vel[3] = data.angular.z
+    print('inside call back args vel is '+ str(args.vel))
+
 def main():
     bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
     bc_plant.start()  # start a different thread that publishes agent's observations
 
+    rospy.Subscriber('cmd_vel',Twist,callback,(bc_plant))
+
     while not rospy.is_shutdown():
 
-        data = rospy.wait_for_message(
-            "cmd_vel", Twist, timeout=None
-        )
+        # data = rospy.wait_for_message(
+        #     "cmd_vel", Twist, timeout=None
+        # )
 
-        bc_plant.vel[0] = -data.linear.x
-        bc_plant.vel[1] = data.linear.y
-        bc_plant.vel[2] = data.angular.y
-        bc_plant.vel[3] = data.angular.z
-        print('I heard new cmd_vel which is ' + str(bc_plant.vel))
+        # bc_plant.vel[0] = -data.linear.x
+        # bc_plant.vel[1] = data.linear.y
+        # bc_plant.vel[2] = data.angular.y
+        # bc_plant.vel[3] = data.angular.z
+        # print('I heard new cmd_vel which is ' + str(bc_plant.vel))
+        print('bc_plant velocity is '+ str(bc_plant.vel))
         bc_plant.update_position()
         bc_plant.update_attitude()
+        
 
 
 if __name__ == "__main__":
