@@ -3,25 +3,21 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import sys
-import threading
 
-import roslib
-
-# roslib.load_manifest(PKG)
 
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from geometry_msgs.msg import Twist
-
+import threading
+import sys
 sys.path = [
     b for b in sys.path if "2.7" not in b
 ]  # remove path's related to ROS from environment or else certain packages like cv2 can't be imported
 
 import habitat
 import numpy as np
-import time
+
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
 pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
@@ -33,12 +29,13 @@ pub_depth_and_pointgoal = rospy.Publisher(
 rospy.init_node("plant_model", anonymous=True)
 
 
-class habitat_plant(threading.Thread):
+class sim_env(threading.Thread):
 
     _x_axis = 0
     _y_axis = 1
     _z_axis = 2
     _dt = 0.00478
+    _sensor_rate = 20  # hz
 
     def __init__(self, env_config_file):
         threading.Thread.__init__(self)
@@ -48,7 +45,7 @@ class habitat_plant(threading.Thread):
 
         self.env._sim._sim.agents[0].state.velocity = np.float32([0, 0, 0])
         self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0, 0, 0])
-        
+
         print("created habitat_plant succsefully")
 
     def render(self):
@@ -117,45 +114,41 @@ class habitat_plant(threading.Thread):
         self.render()
 
     def run(self):
+        """Publish sensor readings at a constant rate at a different branch"""
         while not rospy.is_shutdown():
             pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
             pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
+
             depth_np = np.float32(self.observations["depth"].ravel())
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-            # print('publish loop ran')
-            rospy.sleep(0.05)
+
+            rospy.sleep(1 / self._sensor_rate)
 
 
-def callback(data, args):
+def callback(data, my_env):
 
-    velocity = np.float32([-data.linear.x, data.linear.y, 0])
-    angular_velocity = np.float32([0, data.angular.y, data.angular.z])
-
-    args.env._sim._sim.agents[0].state.velocity[0] = velocity[0]
-    args.env._sim._sim.agents[0].state.velocity[1] = velocity[1]
-    args.env._sim._sim.agents[0].state.velocity[2] = velocity[2]
-    args.env._sim._sim.agents[0].state.angular_velocity[0] = angular_velocity[0]
-    args.env._sim._sim.agents[0].state.angular_velocity[1] = angular_velocity[1]
-    args.env._sim._sim.agents[0].state.angular_velocity[2] = angular_velocity[2]
+    my_env.env._sim._sim.agents[0].state.velocity[0] = -data.linear.x
+    my_env.env._sim._sim.agents[0].state.velocity[1] = data.linear.y
+    my_env.env._sim._sim.agents[0].state.angular_velocity[1] = data.angular.y
+    my_env.env._sim._sim.agents[0].state.angular_velocity[2] = data.angular.z
 
     print(
         "inside call back args vel is "
-        + str(args.env._sim._sim.agents[0].state.velocity)
+        + str(my_env.env._sim._sim.agents[0].state.velocity)
     )
 
 
 def main():
-    bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
-    bc_plant.start()  # start a different thread that publishes agent's observations
-
-    rospy.Subscriber("cmd_vel", Twist, callback, (bc_plant))
+    bc_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
+    bc_env.start()  # starts the thread that publishes sensor readings
+    rospy.Subscriber("cmd_vel", Twist, callback, (bc_env))
 
     while not rospy.is_shutdown():
 
-        bc_plant.update_position()
-        bc_plant.update_attitude()
+        bc_env.update_position()
+        bc_env.update_attitude()
 
 
 if __name__ == "__main__":
