@@ -44,7 +44,9 @@ class habitat_plant(threading.Thread):
         self.env = habitat.Env(config=habitat.get_config(env_config_file))
         self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
         self.observations = self.env.reset()
-        self.vel = np.float32([0, 0, 0, 0])
+
+        self.env._sim._sim.agents[0].state.velocity = np.float32([0,0,0])
+        self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0,0,0])
         self.dt = 0.00478
         print("created habitat_plant succsefully")
 
@@ -59,10 +61,11 @@ class habitat_plant(threading.Thread):
         )
 
     def update_position(self):
-
-        vz = self.vel[0]
-        vx = self.vel[1]
+        state = self.env.sim.get_agent_state(0)
+        vz = state.velocity[0]
+        vx = state.velocity[1]
         dt = self.dt
+    
 
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
 
@@ -85,9 +88,10 @@ class habitat_plant(threading.Thread):
 
     def update_attitude(self):
         """ update agent orientation given angular velocity and delta time"""
-        roll = 0  # temporarily ban roll and pitch motion
-        pitch = 0
-        yaw = self.vel[3]
+        state = self.env.sim.get_agent_state(0)
+        roll = state.angular_velocity[0] *0  # temporarily ban roll and pitch motion
+        pitch = state.angular_velocity[1] *0 # temporarily ban roll and pitch motion
+        yaw = state.angular_velocity[2] 
         dt = self.dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
@@ -126,11 +130,18 @@ class habitat_plant(threading.Thread):
 
 
 def callback(data,args):
-    args.vel[0] = -data.linear.x
-    args.vel[1] = data.linear.y
-    args.vel[2] = data.angular.y
-    args.vel[3] = data.angular.z
-    #print('inside call back args vel is '+ str(args.vel))
+    
+    velocity = np.float32([-data.linear.x,data.linear.y,0])
+    angular_velocity = np.float32([0,data.angular.y,data.angular.z])
+
+    args.env._sim._sim.agents[0].state.velocity[0] = velocity[0]
+    args.env._sim._sim.agents[0].state.velocity[1] = velocity[1]
+    args.env._sim._sim.agents[0].state.velocity[2] = velocity[2]
+    args.env._sim._sim.agents[0].state.angular_velocity[0] = angular_velocity[0]
+    args.env._sim._sim.agents[0].state.angular_velocity[1] = angular_velocity[1]
+    args.env._sim._sim.agents[0].state.angular_velocity[2] = angular_velocity[2]
+
+    print('inside call back args vel is '+ str(args.env._sim._sim.agents[0].state.velocity))
 
 def main():
     bc_plant = habitat_plant(env_config_file="configs/tasks/pointnav_rgbd.yaml")
@@ -139,7 +150,7 @@ def main():
     rospy.Subscriber('cmd_vel',Twist,callback,(bc_plant))
 
     while not rospy.is_shutdown():
-        st = time.time()
+        #st = time.time()
         # data = rospy.wait_for_message(
         #     "cmd_vel", Twist, timeout=None
         # )
@@ -152,7 +163,7 @@ def main():
         #print('bc_plant velocity is '+ str(bc_plant.vel))
         bc_plant.update_position()
         bc_plant.update_attitude()
-        print(time.time()-st)
+       #print(time.time()-st)
         
 
 
