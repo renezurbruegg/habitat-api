@@ -27,12 +27,19 @@ class ActionSpaceConfiguration(abc.ABC):
 
 
 class _DefaultSimulatorActions(Enum):
-    STOP = 0
-    MOVE_FORWARD = 1
-    TURN_LEFT = 2
-    TURN_RIGHT = 3
-    LOOK_UP = 4
-    LOOK_DOWN = 5
+    # STOP = 0
+    # MOVE_FORWARD = 1
+    # TURN_LEFT = 2
+    # TURN_RIGHT = 3
+    # LOOK_UP = 4
+    # LOOK_DOWN = 5
+    
+    STOP = 3
+    MOVE_FORWARD = 0
+    TURN_LEFT = 1
+    TURN_RIGHT = 2
+    # LOOK_UP = 4
+    # LOOK_DOWN = 5
 
 
 @attr.s(auto_attribs=True, slots=True)

@@ -67,16 +67,6 @@ def main():
     #args = parser.parse_args()
 
  
-   
-    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/ckpt.2.pth", \
-    '--sim-gpu-id', '0',\
-    '--pth-gpu-id','0', \
-    '--num-processes', '1', \
-    '--count-test-episodes', '5', \
-    '--task-config', "configs/tasks/pointnav_rgbd.yaml" ]
-    args = parser.parse_args(foo)
-
-    #args = parser.parse_args()
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
@@ -152,19 +142,19 @@ def main():
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
 
     while episode_counts.sum() < args.count_test_episodes:
-        test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
-        pickle_out = open("hab_recurrent_states.pickle","wb")
-        pickle.dump(test_recurrent_hidden_states_list, pickle_out)
-        pickle_out.close()
-        obs_list.append(observations[0])
-        pickle_out = open("hab_obs_list.pickle","wb")
-        pickle.dump(obs_list, pickle_out)
-        pickle_out.close()
+        # test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
+        # pickle_out = open("hab_recurrent_states.pickle","wb")
+        # pickle.dump(test_recurrent_hidden_states_list, pickle_out)
+        # pickle_out.close()
+        # obs_list.append(observations[0])
+        # pickle_out = open("hab_obs_list.pickle","wb")
+        # pickle.dump(obs_list, pickle_out)
+        # pickle_out.close()
 
-        mask_list.append(not_done_masks)
-        pickle_out = open("hab_mask_list.pickle","wb")
-        pickle.dump(mask_list, pickle_out)
-        pickle_out.close()
+        # mask_list.append(not_done_masks)
+        # pickle_out = open("hab_mask_list.pickle","wb")
+        # pickle.dump(mask_list, pickle_out)
+        # pickle_out.close()
         
         with torch.no_grad():
             _, actions, _, test_recurrent_hidden_states = actor_critic.act(

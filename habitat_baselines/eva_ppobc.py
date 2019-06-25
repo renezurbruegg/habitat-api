@@ -16,6 +16,7 @@ roslib.load_manifest(PKG)
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
+from geometry_msgs.msg import Twist
 import numpy as np
 
 initial_sys_path = sys.path
@@ -23,7 +24,6 @@ sys.path = [b for b in sys.path if "2.7" not in b]
 sys.path.insert(0, os.getcwd())
 
 import argparse
-
 import torch
 import habitat
 from habitat.config.default import get_config
@@ -32,14 +32,15 @@ from config.default import get_config as cfg_baseline
 from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
-
+import time
 
 sys.path = initial_sys_path
 
-pub_vel = rospy.Publisher('bc_cmd_vel', numpy_msg(Floats),queue_size=10)
+pub_vel = rospy.Publisher('cmd_vel', Twist,queue_size=1)
 rospy.init_node('controller_nn', anonymous=True)
-
 flag = 1
+
+t_prev_update = time.time()
 
 def main():
 
@@ -149,47 +150,61 @@ def main():
         nonlocal not_done_masks
         nonlocal test_recurrent_hidden_states
         global flag
+        global t_prev_update
 
-        observation = {}
-        observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
-        observation['pointgoal'] = data.data[-2:]
-        
-        batch = batch_obs([observation])
-        for sensor in batch:
-            batch[sensor] = batch[sensor].to(device)
-        if flag ==1:
-            not_done_masks = torch.tensor(
-                [0.0] ,
-                dtype=torch.float,
-                device=device,
-            )
-            flag = 0
-        else:
-            not_done_masks = torch.tensor(
-                [1.0] ,
-                dtype=torch.float,
-                device=device,
-            )
-        _, actions, _, test_recurrent_hidden_states= actor_critic.act(
-            batch,
-            test_recurrent_hidden_states,
-            not_done_masks,
-            deterministic=True,
-        )
-        
-        action_id = actions.item()
-        print("action_id from net is "+str(actions.item()))
-        print(observation['pointgoal'])
-        #rospy.sleep(0.05)
-        if action_id == 0:
-            pub_vel.publish(np.float32([-0.25,0,0,0]))
-        elif action_id == 1:
-            pub_vel.publish(np.float32([0,0,0,10]))
-        elif action_id ==2:
-            pub_vel.publish(np.float32([0,0,0,-10]))
+        if (time.time()-t_prev_update)>=1:
 
+            observation = {}
+            observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
+            observation['pointgoal'] = data.data[-2:]
+            
+            batch = batch_obs([observation])
+            for sensor in batch:
+                batch[sensor] = batch[sensor].to(device)
+            if flag ==1:
+                not_done_masks = torch.tensor(
+                    [0.0] ,
+                    dtype=torch.float,
+                    device=device,
+                )
+                flag = 0
+            else:
+                not_done_masks = torch.tensor(
+                    [1.0] ,
+                    dtype=torch.float,
+                    device=device,
+                )
+            _, actions, _, test_recurrent_hidden_states= actor_critic.act(
+                batch,
+                test_recurrent_hidden_states,
+                not_done_masks,
+                deterministic=True,
+            )
+            
+            action_id = actions.item()
+            print("action_id from net is "+str(actions.item()))
+            print(observation['pointgoal'])
+
+            t_prev_update = time.time()
+            vel_msg = Twist()
+            vel_msg.linear.x = 0
+            vel_msg.linear.y = 0
+            vel_msg.linear.z = 0
+            vel_msg.angular.x = 0
+            vel_msg.angular.y = 0
+            vel_msg.angular.z = 0
+            if action_id == 0:
+                vel_msg.linear.x = -0.25
+                print('entered first action id 1')
+                pub_vel.publish(vel_msg)
+            elif action_id == 1:
+                vel_msg.angular.z = 10
+                pub_vel.publish(vel_msg)
+            elif action_id ==2:
+                vel_msg.angular.z = -10
+                pub_vel.publish(vel_msg)
+            
         
-    
     rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)
     rospy.spin()
 

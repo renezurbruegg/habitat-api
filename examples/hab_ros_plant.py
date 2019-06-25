@@ -6,6 +6,8 @@
 
 
 import rospy
+#from cv_bridge import CvBridge, CvBridgeError
+#from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from geometry_msgs.msg import Twist
@@ -17,6 +19,8 @@ sys.path = [
 
 import habitat
 import numpy as np
+import time
+import cv2
 
 
 pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
@@ -26,8 +30,9 @@ pub_depth_and_pointgoal = rospy.Publisher(
     "depth_and_pointgoal", numpy_msg(Floats), queue_size=10
 )
 
+#pub_rgb_ros= rospy.Publisher("ros_img_rgb", Image, queue_size=10)
 rospy.init_node("plant_model", anonymous=True)
-
+dt_list =[0.009,0.009,0.009]
 
 class sim_env(threading.Thread):
 
@@ -88,7 +93,7 @@ class sim_env(threading.Thread):
         state = self.env.sim.get_agent_state(0)
         roll = state.angular_velocity[0] * 0  # temporarily ban roll and pitch motion
         pitch = state.angular_velocity[1] * 0  # temporarily ban roll and pitch motion
-        yaw = state.angular_velocity[2]
+        yaw = -state.angular_velocity[2]
         dt = self._dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
@@ -123,7 +128,10 @@ class sim_env(threading.Thread):
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-
+            
+            #image_message = CvBridge().cv2_to_imgmsg(self.observations["rgb"], encoding="rgb8")
+            #print('bc '+ str(image_message))
+            #pub_rgb_ros.publish(image_message)
             rospy.sleep(1 / self._sensor_rate)
 
 
@@ -136,20 +144,26 @@ def callback(data, my_env):
 
     print(
         "inside call back args vel is "
-        + str(my_env.env._sim._sim.agents[0].state.velocity)
-    )
+        + str(np.concatenate((my_env.env._sim._sim.agents[0].state.velocity,my_env.env._sim._sim.agents[0].state.angular_velocity))))
+
+
 
 
 def main():
+    global dt_list
     bc_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
     bc_env.start()  # starts the thread that publishes sensor readings
     rospy.Subscriber("cmd_vel", Twist, callback, (bc_env))
 
     while not rospy.is_shutdown():
 
+        start_time = time.time()
         bc_env.update_position()
         bc_env.update_attitude()
-
+        dt_list.insert(0,start_time - time.time())
+        dt_list.pop()
+        bc_env._dt = sum(dt_list)/len(dt_list)
+        #print(bc_env._dt)
 
 if __name__ == "__main__":
     main()
