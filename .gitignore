@@ -101,3 +101,7 @@ core
 unknown-0\.0-py27_0\.tar\.bz2
 
 frames\.pdf
+
+*.pickle
+
+*.p

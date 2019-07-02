@@ -22,8 +22,3 @@ TASK:
   SPL:
     TYPE: SPL
     SUCCESS_DISTANCE: 0.2
-DATASET:
-  TYPE: PointNav-v1
-  SPLIT: val_mini
-  POINTNAVV1:
-    DATA_PATH: data/datasets/pointnav/gibson/{split}/{split}.json.gz
