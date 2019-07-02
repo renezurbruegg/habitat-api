@@ -19,6 +19,7 @@ from rospy_tutorials.msg import Floats
 from geometry_msgs.msg import Twist
 import numpy as np
 
+
 initial_sys_path = sys.path
 sys.path = [b for b in sys.path if "2.7" not in b]
 sys.path.insert(0, os.getcwd())
@@ -33,6 +34,7 @@ from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
 import time
+
 
 sys.path = initial_sys_path
 
@@ -66,13 +68,13 @@ def main():
         help="path to config yaml containing information about task",
     )
     
-    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth", \
+    cmd_line_inputs =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth", \
     '--sim-gpu-id', '0',\
     '--pth-gpu-id','0', \
     '--num-processes', '1', \
     '--count-test-episodes', '100', \
     '--task-config', "configs/tasks/pointnav.yaml" ]
-    args = parser.parse_args(foo)
+    args = parser.parse_args(cmd_line_inputs)
 
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
@@ -144,7 +146,8 @@ def main():
  
     
     def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
-        print('call back entered in eva_ppobc')
+        #print('call back entered in eva_ppobc')
+        #print('entered call back')
         nonlocal actor_critic
         nonlocal batch
         nonlocal not_done_masks
@@ -157,6 +160,10 @@ def main():
             observation = {}
             observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
             observation['pointgoal'] = data.data[-2:]
+
+            # cv2.imshow("Depth", observation['depth'])
+            # cv2.waitKey(100)
+            # time.sleep(0.2)
             
             batch = batch_obs([observation])
             for sensor in batch:
@@ -174,6 +181,7 @@ def main():
                     dtype=torch.float,
                     device=device,
                 )
+
             _, actions, _, test_recurrent_hidden_states= actor_critic.act(
                 batch,
                 test_recurrent_hidden_states,
@@ -182,9 +190,9 @@ def main():
             )
             
             action_id = actions.item()
+            print('observation received to produce action_id is '+str(observation['pointgoal']))
             print("action_id from net is "+str(actions.item()))
-            print(observation['pointgoal'])
-
+    
             t_prev_update = time.time()
             vel_msg = Twist()
             vel_msg.linear.x = 0
@@ -194,18 +202,24 @@ def main():
             vel_msg.angular.y = 0
             vel_msg.angular.z = 0
             if action_id == 0:
-                vel_msg.linear.x = -0.25
+                vel_msg.linear.x = 0.25
                 print('entered first action id 1')
                 pub_vel.publish(vel_msg)
             elif action_id == 1:
-                vel_msg.angular.z = 10
+                #vel_msg.angular.z = 10
+                vel_msg.angular.z = 10/180*3.1415926
                 pub_vel.publish(vel_msg)
             elif action_id ==2:
-                vel_msg.angular.z = -10
+                #vel_msg.angular.z = -10
+                vel_msg.angular.z = -10/180*3.1415926
                 pub_vel.publish(vel_msg)
+            else:
+                pub_vel.publish(vel_msg)
+                sub.unregister()
+                print('NN finished navigation task')
             
         
-    rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)
+    sub = rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)
     rospy.spin()
 
 

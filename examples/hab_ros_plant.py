@@ -66,7 +66,7 @@ class sim_env(threading.Thread):
     def update_position(self):
         state = self.env.sim.get_agent_state(0)
         vz = state.velocity[0]
-        vx = state.velocity[1]
+        vx = -state.velocity[1]
         dt = self._dt
 
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
@@ -132,12 +132,13 @@ class sim_env(threading.Thread):
             #image_message = CvBridge().cv2_to_imgmsg(self.observations["rgb"], encoding="rgb8")
             #print('bc '+ str(image_message))
             #pub_rgb_ros.publish(image_message)
+            print('in running')
             rospy.sleep(1 / self._sensor_rate)
 
 
 def callback(data, my_env):
 
-    my_env.env._sim._sim.agents[0].state.velocity[0] = -data.linear.x
+    my_env.env._sim._sim.agents[0].state.velocity[0] = data.linear.x
     my_env.env._sim._sim.agents[0].state.velocity[1] = data.linear.y
     my_env.env._sim._sim.agents[0].state.angular_velocity[1] = data.angular.y
     my_env.env._sim._sim.agents[0].state.angular_velocity[2] = data.angular.z
