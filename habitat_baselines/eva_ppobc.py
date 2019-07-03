@@ -20,9 +20,13 @@ from geometry_msgs.msg import Twist
 import numpy as np
 
 
+
+
+
 initial_sys_path = sys.path
 sys.path = [b for b in sys.path if "2.7" not in b]
 sys.path.insert(0, os.getcwd())
+
 
 import argparse
 import torch
@@ -36,13 +40,23 @@ from rl.ppo.utils import batch_obs
 import time
 
 
+
+
 sys.path = initial_sys_path
+
 
 pub_vel = rospy.Publisher('cmd_vel', Twist,queue_size=1)
 rospy.init_node('controller_nn', anonymous=True)
-flag = 1
 
+#define some useful global variables
+flag = 2
+observation = {}
 t_prev_update = time.time()
+
+def pol2cart(rho, phi):
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return(x, y)
 
 def main():
 
@@ -143,7 +157,8 @@ def main():
         args.num_processes, args.hidden_size, device=device
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
- 
+
+
     
     def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
         #print('call back entered in eva_ppobc')
@@ -154,16 +169,49 @@ def main():
         nonlocal test_recurrent_hidden_states
         global flag
         global t_prev_update
+        global observation
+        global linear_prev
+        
 
-        if (time.time()-t_prev_update)>=1:
-
-            observation = {}
+     
+        if flag ==2:
             observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
             observation['pointgoal'] = data.data[-2:]
+            flag =1
+            return 
+
+        pointgoal_received = data.data[-2:]
+        translate_amount = 0.25 #meters
+        rotate_amount = 0.174533 #radians
+
+        #a=np.array(pol2cart(observation['pointgoal'][0],observation['pointgoal'][1]))
+        #b=np.array(pol2cart(pointgoal_received[0],pointgoal_received[1]))
+
+        
+        isrotated =  rotate_amount*0.95<=abs(pointgoal_received[1]-observation['pointgoal'][1])<=rotate_amount*1.05
+        istimeup = (time.time()-t_prev_update)>=4
+
+        #print('istranslated is '+ str(istranslated))
+        #print('isrotated is '+ str(isrotated))
+        #print('istimeup is '+ str(istimeup))
+
+        if (isrotated or istimeup):
+            vel_msg = Twist()
+            vel_msg.linear.x = 0
+            vel_msg.linear.y = 0
+            vel_msg.linear.z = 0
+            vel_msg.angular.x = 0
+            vel_msg.angular.y = 0
+            vel_msg.angular.z = 0
+            pub_vel.publish(vel_msg)
+            time.sleep(0.2)
+            print('entered update step')
 
             # cv2.imshow("Depth", observation['depth'])
             # cv2.waitKey(100)
-            # time.sleep(0.2)
+            
+            observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
+            observation['pointgoal'] = data.data[-2:]
             
             batch = batch_obs([observation])
             for sensor in batch:
@@ -202,8 +250,7 @@ def main():
             vel_msg.angular.y = 0
             vel_msg.angular.z = 0
             if action_id == 0:
-                vel_msg.linear.x = 0.25
-                print('entered first action id 1')
+                vel_msg.linear.x = 0.25/4
                 pub_vel.publish(vel_msg)
             elif action_id == 1:
                 #vel_msg.angular.z = 10
@@ -219,9 +266,11 @@ def main():
                 print('NN finished navigation task')
             
         
-    sub = rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback)
+    sub = rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback,queue_size=1)
     rospy.spin()
 
 
 if __name__ == "__main__":
     main()
+
+##get tf working so distance travelled is correct!!!
