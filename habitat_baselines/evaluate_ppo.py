@@ -21,6 +21,7 @@ from rl.ppo.utils import batch_obs
 from train_ppo import make_env_fn
 import cv2
 import matplotlib.pyplot as plt
+import pickle
 
 import pickle
 global obs_list
@@ -174,6 +175,7 @@ def main():
         #for visualizing where robot is going
         #cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
         cv2.imshow("Depth", observations[0]["depth"])
+        pickle.dump( observations[0]["depth"], open( "habitat_depth.p", "wb" ) )
         cv2.waitKey(100)
         time.sleep(0.2)
       

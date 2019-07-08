@@ -170,10 +170,7 @@ def main():
         global flag
         global t_prev_update
         global observation
-        global linear_prev
         
-
-     
         if flag ==2:
             observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
             observation['pointgoal'] = data.data[-2:]
@@ -184,10 +181,6 @@ def main():
         translate_amount = 0.25 #meters
         rotate_amount = 0.174533 #radians
 
-        #a=np.array(pol2cart(observation['pointgoal'][0],observation['pointgoal'][1]))
-        #b=np.array(pol2cart(pointgoal_received[0],pointgoal_received[1]))
-
-        
         isrotated =  rotate_amount*0.95<=abs(pointgoal_received[1]-observation['pointgoal'][1])<=rotate_amount*1.05
         istimeup = (time.time()-t_prev_update)>=4
 
@@ -272,5 +265,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-##get tf working so distance travelled is correct!!!

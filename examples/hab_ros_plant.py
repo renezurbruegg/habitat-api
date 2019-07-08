@@ -6,8 +6,6 @@
 
 
 import rospy
-#from cv_bridge import CvBridge, CvBridgeError
-#from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from geometry_msgs.msg import Twist
@@ -119,7 +117,7 @@ class sim_env(threading.Thread):
         self.render()
 
     def run(self):
-        """Publish sensor readings at a constant rate at a different branch"""
+        """Publish sensor readings through ROS on a different thread"""
         while not rospy.is_shutdown():
             pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
             pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
@@ -149,11 +147,11 @@ def callback(data, my_env):
 
 
 
-
 def main():
     global dt_list
     bc_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
-    bc_env.start()  # starts the thread that publishes sensor readings
+    # start the thread that publishes sensor readings
+    bc_env.start()  
     rospy.Subscriber("cmd_vel", Twist, callback, (bc_env))
 
     while not rospy.is_shutdown():
