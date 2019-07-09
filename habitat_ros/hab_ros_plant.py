@@ -140,14 +140,13 @@ class sim_env(threading.Thread):
     def set_yaw(self,yaw):
         self.env._sim._sim.agents[0].state.angular_velocity[2] = yaw
 
-    #def set_angular_velocity(self,yaw):
     def update_orientation(self):
         self.update_attitude()
         self.update_position()
 
 def callback(data, my_env):
     my_env.set_linear_velocity(data.linear.x,data.linear.y)
-    my_env.set_angular_velocity(data.angular.z)
+    my_env.set_yaw(data.angular.z)
     print(
         "inside call back args vel is "
         + str(np.concatenate((my_env.env._sim._sim.agents[0].state.velocity,my_env.env._sim._sim.agents[0].state.angular_velocity))))
