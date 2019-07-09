@@ -6,8 +6,6 @@
 
 
 import rospy
-#from cv_bridge import CvBridge, CvBridgeError
-#from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from geometry_msgs.msg import Twist
@@ -119,7 +117,7 @@ class sim_env(threading.Thread):
         self.render()
 
     def run(self):
-        """Publish sensor readings at a constant rate at a different branch"""
+        """Publish sensor readings through ROS on a different thread"""
         while not rospy.is_shutdown():
             pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
             pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
@@ -135,32 +133,36 @@ class sim_env(threading.Thread):
             print('in running')
             rospy.sleep(1 / self._sensor_rate)
 
+    def set_linear_velocity(self,vx,vy):
+        self.env._sim._sim.agents[0].state.velocity[0] = vx
+        self.env._sim._sim.agents[0].state.velocity[1] = vy
+    
+    def set_yaw(self,yaw):
+        self.env._sim._sim.agents[0].state.angular_velocity[2] = yaw
+
+    #def set_angular_velocity(self,yaw):
+    def update_orientation(self):
+        self.update_attitude()
+        self.update_position()
 
 def callback(data, my_env):
-
-    my_env.env._sim._sim.agents[0].state.velocity[0] = data.linear.x
-    my_env.env._sim._sim.agents[0].state.velocity[1] = data.linear.y
-    my_env.env._sim._sim.agents[0].state.angular_velocity[1] = data.angular.y
-    my_env.env._sim._sim.agents[0].state.angular_velocity[2] = data.angular.z
-
+    my_env.set_linear_velocity(data.linear.x,data.linear.y)
+    my_env.set_angular_velocity(data.angular.z)
     print(
         "inside call back args vel is "
         + str(np.concatenate((my_env.env._sim._sim.agents[0].state.velocity,my_env.env._sim._sim.agents[0].state.angular_velocity))))
 
-
-
-
 def main():
     global dt_list
     bc_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
-    bc_env.start()  # starts the thread that publishes sensor readings
+    # start the thread that publishes sensor readings
+    bc_env.start()  
     rospy.Subscriber("cmd_vel", Twist, callback, (bc_env))
 
     while not rospy.is_shutdown():
 
         start_time = time.time()
-        bc_env.update_position()
-        bc_env.update_attitude()
+        bc_env.update_orientation()
         dt_list.insert(0,start_time - time.time())
         dt_list.pop()
         bc_env._dt = sum(dt_list)/len(dt_list)
