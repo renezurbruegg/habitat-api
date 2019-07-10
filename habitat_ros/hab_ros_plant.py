@@ -22,17 +22,6 @@ import time
 import cv2
 
 
-pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
-pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
-pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
-pub_depth_and_pointgoal = rospy.Publisher(
-    "depth_and_pointgoal", numpy_msg(Floats), queue_size=10
-)
-
-# pub_rgb_ros= rospy.Publisher("ros_img_rgb", Image, queue_size=10)
-rospy.init_node("plant_model", anonymous=True)
-
-
 class sim_env(threading.Thread):
 
     _x_axis = 0
@@ -40,6 +29,7 @@ class sim_env(threading.Thread):
     _z_axis = 2
     dt = 0.00478
     _sensor_rate = 40  # hz
+
 
     def __init__(self, env_config_file):
         threading.Thread.__init__(self)
@@ -50,6 +40,12 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].state.velocity = np.float32([0, 0, 0])
         self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0, 0, 0])
 
+        self._pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
+        self._pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
+        self._pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
+        self._pub_depth_and_pointgoal = rospy.Publisher(
+            "depth_and_pointgoal", numpy_msg(Floats), queue_size=10
+        )
         print("created habitat_plant succsefully")
 
     def _render(self):
@@ -64,8 +60,8 @@ class sim_env(threading.Thread):
 
     def _update_position(self):
         state = self.env.sim.get_agent_state(0)
-        vz = state.velocity[0]
-        vx = -state.velocity[1]
+        vz = -state.velocity[0]
+        vx = state.velocity[1]
         dt = self.dt
 
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
@@ -92,7 +88,7 @@ class sim_env(threading.Thread):
         state = self.env.sim.get_agent_state(0)
         roll = state.angular_velocity[0] * 0  # temporarily ban roll and pitch motion
         pitch = state.angular_velocity[1] * 0  # temporarily ban roll and pitch motion
-        yaw = -state.angular_velocity[2]
+        yaw = state.angular_velocity[2]
         dt = self.dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
@@ -118,17 +114,19 @@ class sim_env(threading.Thread):
         self._render()
 
     def run(self):
-        """Publish sensor readings through ROS on a different thread
-            This method is used by python's threading class
+        """Publish sensor readings through ROS on a different thread.
+            This method defines what the thread does when the start() method
+            of the threading class is called
         """
         while not rospy.is_shutdown():
-            pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
-            pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
+            self._pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
+            #multiply by 10 to get distance in meters
+            self._pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
 
             depth_np = np.float32(self.observations["depth"].ravel())
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
-            pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
+            self._pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
 
             print("in running")
             rospy.sleep(1 / self._sensor_rate)
@@ -145,9 +143,9 @@ class sim_env(threading.Thread):
         self._update_position()
 
 
-def callback(data, my_env):
-    my_env.set_linear_velocity(data.linear.x, data.linear.y)
-    my_env.set_yaw(data.angular.z)
+def callback(vel, my_env):
+    my_env.set_linear_velocity(vel.linear.x, vel.linear.y)
+    my_env.set_yaw(vel.angular.z)
     print(
         "inside call back args vel is "
         + str(
@@ -162,20 +160,24 @@ def callback(data, my_env):
 
 
 def main():
+    rospy.init_node("plant_model", anonymous=True)
 
-    bc_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
+    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
     # start the thread that publishes sensor readings
-    bc_env.start()
+    my_env.start()
 
-    rospy.Subscriber("cmd_vel", Twist, callback, (bc_env))
+    rospy.Subscriber("cmd_vel", Twist, callback, (my_env))
+    #define a list capturing how long it took 
+    # to update agent orientation for past 3 instances
     dt_list = [0.009, 0.009, 0.009]
     while not rospy.is_shutdown():
 
         start_time = time.time()
-        bc_env.update_orientation()
-        dt_list.insert(0, start_time - time.time())
+        my_env.update_orientation()
+        dt_list.insert(0, time.time()-start_time)
+        print(time.time()-start_time)
         dt_list.pop()
-        bc_env.dt = sum(dt_list) / len(dt_list)
+        my_env.dt = sum(dt_list) / len(dt_list)
 
 
 if __name__ == "__main__":
