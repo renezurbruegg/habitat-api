@@ -27,7 +27,7 @@ class sim_env(threading.Thread):
     _x_axis = 0
     _y_axis = 1
     _z_axis = 2
-    dt = 0.00478
+    _dt = 0.00478
     _sensor_rate = 40  # hz
 
 
@@ -62,7 +62,7 @@ class sim_env(threading.Thread):
         state = self.env.sim.get_agent_state(0)
         vz = -state.velocity[0]
         vx = state.velocity[1]
-        dt = self.dt
+        dt = self._dt
 
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
 
@@ -89,7 +89,7 @@ class sim_env(threading.Thread):
         roll = state.angular_velocity[0] * 0  # temporarily ban roll and pitch motion
         pitch = state.angular_velocity[1] * 0  # temporarily ban roll and pitch motion
         yaw = state.angular_velocity[2]
-        dt = self.dt
+        dt = self._dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
         ax_roll[self._z_axis] = 1
@@ -142,6 +142,8 @@ class sim_env(threading.Thread):
         self._update_attitude()
         self._update_position()
 
+    def set_dt (self,dt):
+        self._dt = dt
 
 def callback(vel, my_env):
     my_env.set_linear_velocity(vel.linear.x, vel.linear.y)
@@ -177,7 +179,7 @@ def main():
         dt_list.insert(0, time.time()-start_time)
         print(time.time()-start_time)
         dt_list.pop()
-        my_env.dt = sum(dt_list) / len(dt_list)
+        my_env.set_dt(sum(dt_list) / len(dt_list))
 
 
 if __name__ == "__main__":
