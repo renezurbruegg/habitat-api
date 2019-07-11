@@ -177,7 +177,7 @@ def main():
         start_time = time.time()
         my_env.update_orientation()
         dt_list.insert(0, time.time()-start_time)
-        print(time.time()-start_time)
+        #print(time.time()-start_time)
         dt_list.pop()
         my_env.set_dt(sum(dt_list) / len(dt_list))
 
