@@ -164,7 +164,7 @@ def callback(vel, my_env):
 def main():
     rospy.init_node("plant_model", anonymous=True)
 
-    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
+    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd_gibson.yaml")
     # start the thread that publishes sensor readings
     my_env.start()
 
