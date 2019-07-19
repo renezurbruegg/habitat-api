@@ -22,10 +22,13 @@ import magnum as mn
 import numpy as np
 import time
 import cv2
-count =0
+
+count = 0
 
 lock = threading.Lock()
 rospy.init_node("plant_model", anonymous=True)
+
+
 class sim_env(threading.Thread):
 
     _x_axis = 0
@@ -34,7 +37,6 @@ class sim_env(threading.Thread):
     _dt = 0.00478
     _sensor_rate = 40  # hz
     _r = rospy.Rate(_sensor_rate)
-
 
     def __init__(self, env_config_file):
         threading.Thread.__init__(self)
@@ -72,72 +74,43 @@ class sim_env(threading.Thread):
         # start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_translation
 
-        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[self._z_axis].xyz
+        ax = (
+            self.env._sim._sim.agents[0]
+            .scene_node.absolute_transformation()[self._z_axis]
+            .xyz
+        )
         self.env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
 
-        ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[self._x_axis].xyz
+        ax = (
+            self.env._sim._sim.agents[0]
+            .scene_node.absolute_transformation()[self._x_axis]
+            .xyz
+        )
         self.env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
-        end_pos = self.env._sim._sim.agents[0].scene_node.absolute_translation
 
+        end_pos = self.env._sim._sim.agents[0].scene_node.absolute_translation
         filter_end = self.env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
         # Update the position to respect the filter
         self.env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
-
-        # dist_moved_before_filter = (end_pos - start_pos).dot()
-        # dist_moved_after_filter = (filter_end - start_pos).dot()
-        #collided = (dist_moved_after_filter + EPS) < dist_moved_before_filter
-
-        # ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[
-        #     0:3, self._z_axis
-        # ]
-        # self.env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
-
-        # ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[
-        #     0:3, self._x_axis
-        # ]
-        # self.env._sim._sim.agents[0].scene_node.translate_local(ax * vx * dt)
-
-        # end_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
-
-        # # can apply or not apply filter
-        # filter_end = self.env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
-        # self.env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
-
-        #self.env._sim._sim.agents[0].scene_node.translate_local(5)
         self._render()
 
     def _update_attitude(self):
         """ update agent orientation given angular velocity and delta time"""
         state = self.env.sim.get_agent_state(0)
-        roll = state.angular_velocity[0] * 0  # temporarily ban roll and pitch motion
-        pitch = state.angular_velocity[1] * 0  # temporarily ban roll and pitch motion
-        yaw = state.angular_velocity[2]/3.1415926*180
+        yaw = state.angular_velocity[2] / 3.1415926 * 180
         dt = self._dt
 
         _rotate_local_fns = [
-        hsim.SceneNode.rotate_x_local,
-        hsim.SceneNode.rotate_y_local,
-        hsim.SceneNode.rotate_z_local,
+            hsim.SceneNode.rotate_x_local,
+            hsim.SceneNode.rotate_y_local,
+            hsim.SceneNode.rotate_z_local,
         ]
-
-        # ax_roll = np.zeros(3, dtype=np.float32)
-        # ax_roll[self._z_axis] = 1
-        # self.env._sim._sim.agents[0].scene_node.rotate_local(
-        #     np.deg2rad(roll * dt), ax_roll
-        # )
-        # self.env._sim._sim.agents[0].scene_node.normalize()
-
-        # ax_pitch = np.zeros(3, dtype=np.float32)
-        # ax_pitch[self._x_axis] = 1
-        # self.env._sim._sim.agents[0].scene_node.rotate_local(
-        #     np.deg2rad(pitch * dt), ax_pitch
-        # )
-        # self.env._sim._sim.agents[0].scene_node.normalize()
-
-        ax_yaw = self._y_axis
-
-        _rotate_local_fns[ax_yaw]( self.env._sim._sim.agents[0].scene_node, mn.Deg(yaw * dt/180*3.1415926))
-        self.env._sim._sim.agents[0].scene_node.rotation = self.env._sim._sim.agents[0].scene_node.rotation.normalized()
+        _rotate_local_fns[self._y_axis](
+            self.env._sim._sim.agents[0].scene_node, mn.Deg(yaw * dt)
+        )
+        self.env._sim._sim.agents[0].scene_node.rotation = self.env._sim._sim.agents[
+            0
+        ].scene_node.rotation.normalized()
         self._render()
 
     def run(self):
@@ -149,10 +122,10 @@ class sim_env(threading.Thread):
         """
         while not rospy.is_shutdown():
             lock.acquire()
-            count = count+1
+            count = count + 1
             print(count)
             self._pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
-            #multiply by 10 to get distance in meters
+            # multiply by 10 to get distance in meters
             self._pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
 
             depth_np = np.float32(self.observations["depth"].ravel())
@@ -163,7 +136,6 @@ class sim_env(threading.Thread):
             print("in running")
             lock.release()
             self._r.sleep()
-            
 
     def set_linear_velocity(self, vx, vy):
         self.env._sim._sim.agents[0].state.velocity[0] = vx
@@ -175,10 +147,10 @@ class sim_env(threading.Thread):
     def update_orientation(self):
         self._update_attitude()
         self._update_position()
-        
 
-    def set_dt (self,dt):
+    def set_dt(self, dt):
         self._dt = dt
+
 
 def callback(vel, my_env):
     global lock
@@ -199,10 +171,8 @@ def callback(vel, my_env):
     lock.release()
 
 
-
 def main():
     global lock
-    
     rospy.init_node("plant_model", anonymous=True)
 
     my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
@@ -210,22 +180,21 @@ def main():
     my_env.start()
 
     rospy.Subscriber("cmd_vel", Twist, callback, (my_env))
-    #define a list capturing how long it took 
+    # define a list capturing how long it took
     # to update agent orientation for past 3 instances
     dt_list = [0.009, 0.009, 0.009]
     while not rospy.is_shutdown():
-        
+
         start_time = time.time()
 
         lock.acquire()
         my_env.update_orientation()
         lock.release()
 
-        dt_list.insert(0, time.time()-start_time)
-        #print(time.time()-start_time)
+        dt_list.insert(0, time.time() - start_time)
         dt_list.pop()
         my_env.set_dt(sum(dt_list) / len(dt_list))
-        
+
 
 if __name__ == "__main__":
     main()
