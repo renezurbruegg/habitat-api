@@ -43,11 +43,11 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].state.velocity = np.float32([0, 0, 0])
         self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0, 0, 0])
 
-        self._pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=10)
-        self._pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=10)
-        self._pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=10)
+        self._pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=1)
+        self._pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=1)
+        self._pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=1)
         self._pub_depth_and_pointgoal = rospy.Publisher(
-            "depth_and_pointgoal", numpy_msg(Floats), queue_size=10
+            "depth_and_pointgoal", numpy_msg(Floats), queue_size=1
         )
         print("created habitat_plant succsefully")
 
@@ -70,7 +70,6 @@ class sim_env(threading.Thread):
      
         # start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_translation
-
 
         ax = self.env._sim._sim.agents[0].scene_node.absolute_transformation()[self._z_axis].xyz
         self.env._sim._sim.agents[0].scene_node.translate_local(ax * vz * dt)
@@ -177,6 +176,8 @@ class sim_env(threading.Thread):
         self._dt = dt
 
 def callback(vel, my_env):
+    global lock
+    lock.acquire()
     my_env.set_linear_velocity(vel.linear.x, vel.linear.y)
     my_env.set_yaw(vel.angular.z)
     print(
@@ -190,10 +191,12 @@ def callback(vel, my_env):
             )
         )
     )
+    lock.release()
+
 
 
 def main():
-    global lock
+    
     rospy.init_node("plant_model", anonymous=True)
 
     my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
@@ -205,7 +208,7 @@ def main():
     # to update agent orientation for past 3 instances
     dt_list = [0.009, 0.009, 0.009]
     while not rospy.is_shutdown():
-        lock.acquire()
+        
 
         start_time = time.time()
         my_env.update_orientation()
@@ -213,8 +216,7 @@ def main():
         #print(time.time()-start_time)
         dt_list.pop()
         my_env.set_dt(sum(dt_list) / len(dt_list))
-        lock.release()
-
+        
 
 if __name__ == "__main__":
     main()
