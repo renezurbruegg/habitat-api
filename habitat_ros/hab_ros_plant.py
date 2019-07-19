@@ -17,6 +17,8 @@ sys.path = [
 ]  # remove path's related to ROS from environment or else certain packages like cv2 can't be imported
 
 import habitat
+import habitat_sim.bindings as hsim
+import magnum as mn
 import numpy as np
 import time
 import cv2
@@ -67,7 +69,6 @@ class sim_env(threading.Thread):
         vx = state.velocity[1]
         dt = self._dt
 
-     
         # start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_translation
 
@@ -113,26 +114,30 @@ class sim_env(threading.Thread):
         yaw = state.angular_velocity[2]/3.1415926*180
         dt = self._dt
 
-        ax_roll = np.zeros(3, dtype=np.float32)
-        ax_roll[self._z_axis] = 1
-        self.env._sim._sim.agents[0].scene_node.rotate_local(
-            np.deg2rad(roll * dt), ax_roll
-        )
-        self.env._sim._sim.agents[0].scene_node.normalize()
+        _rotate_local_fns = [
+        hsim.SceneNode.rotate_x_local,
+        hsim.SceneNode.rotate_y_local,
+        hsim.SceneNode.rotate_z_local,
+        ]
 
-        ax_pitch = np.zeros(3, dtype=np.float32)
-        ax_pitch[self._x_axis] = 1
-        self.env._sim._sim.agents[0].scene_node.rotate_local(
-            np.deg2rad(pitch * dt), ax_pitch
-        )
-        self.env._sim._sim.agents[0].scene_node.normalize()
+        # ax_roll = np.zeros(3, dtype=np.float32)
+        # ax_roll[self._z_axis] = 1
+        # self.env._sim._sim.agents[0].scene_node.rotate_local(
+        #     np.deg2rad(roll * dt), ax_roll
+        # )
+        # self.env._sim._sim.agents[0].scene_node.normalize()
 
-        ax_yaw = np.zeros(3, dtype=np.float32)
-        ax_yaw[self._y_axis] = 1
-        self.env._sim._sim.agents[0].scene_node.rotate_local(
-            np.deg2rad(yaw * dt), ax_yaw
-        )
-        self.env._sim._sim.agents[0].scene_node.normalize()
+        # ax_pitch = np.zeros(3, dtype=np.float32)
+        # ax_pitch[self._x_axis] = 1
+        # self.env._sim._sim.agents[0].scene_node.rotate_local(
+        #     np.deg2rad(pitch * dt), ax_pitch
+        # )
+        # self.env._sim._sim.agents[0].scene_node.normalize()
+
+        ax_yaw = self._y_axis
+
+        _rotate_local_fns[ax_yaw]( self.env._sim._sim.agents[0].scene_node, mn.Deg(yaw * dt/180*3.1415926))
+        self.env._sim._sim.agents[0].scene_node.rotation = self.env._sim._sim.agents[0].scene_node.rotation.normalized()
         self._render()
 
     def run(self):
@@ -168,9 +173,9 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].state.angular_velocity[2] = yaw
 
     def update_orientation(self):
-        #self._update_attitude()
+        self._update_attitude()
         self._update_position()
-        pass
+        
 
     def set_dt (self,dt):
         self._dt = dt
