@@ -159,10 +159,7 @@ def main():
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
 
 
-    
-    def transform_callback(data):#TODO add gobal variable to publish action based on nn in this function
-        #print('call back entered in eva_ppobc')
-        #print('entered call back')
+    def transform_callback(data):
         nonlocal actor_critic
         nonlocal batch
         nonlocal not_done_masks
@@ -246,12 +243,10 @@ def main():
                 vel_msg.linear.x = 0.25/4
                 pub_vel.publish(vel_msg)
             elif action_id == 1:
-                vel_msg.angular.z = 10
-                #vel_msg.angular.z = 10/180*3.1415926
+                vel_msg.angular.z = 10/180*3.1415926
                 pub_vel.publish(vel_msg)
             elif action_id ==2:
-                vel_msg.angular.z = -10
-                #vel_msg.angular.z = -10/180*3.1415926
+                vel_msg.angular.z = -10/180*3.1415926
                 pub_vel.publish(vel_msg)
             else:
                 pub_vel.publish(vel_msg)

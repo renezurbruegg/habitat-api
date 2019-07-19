@@ -29,6 +29,7 @@ class sim_env(threading.Thread):
     _z_axis = 2
     _dt = 0.00478
     _sensor_rate = 40  # hz
+    
 
 
     def __init__(self, env_config_file):
@@ -46,6 +47,7 @@ class sim_env(threading.Thread):
         self._pub_depth_and_pointgoal = rospy.Publisher(
             "depth_and_pointgoal", numpy_msg(Floats), queue_size=10
         )
+        self._r = rospy.Rate(self._sensor_rate) # 10hz 
         print("created habitat_plant succsefully")
 
     def _render(self):
@@ -88,7 +90,7 @@ class sim_env(threading.Thread):
         state = self.env.sim.get_agent_state(0)
         roll = state.angular_velocity[0] * 0  # temporarily ban roll and pitch motion
         pitch = state.angular_velocity[1] * 0  # temporarily ban roll and pitch motion
-        yaw = state.angular_velocity[2]
+        yaw = state.angular_velocity[2]/3.1415926*180
         dt = self._dt
 
         ax_roll = np.zeros(3, dtype=np.float32)
@@ -128,8 +130,11 @@ class sim_env(threading.Thread):
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             self._pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
 
-            print("in running")
-            rospy.sleep(1 / self._sensor_rate)
+            print("in sensor publishing thread")
+            self._r.sleep()
+
+    def set_dt (self,dt):
+        self._dt = dt
 
     def set_linear_velocity(self, vx, vy):
         self.env._sim._sim.agents[0].state.velocity[0] = vx
@@ -142,8 +147,7 @@ class sim_env(threading.Thread):
         self._update_attitude()
         self._update_position()
 
-    def set_dt (self,dt):
-        self._dt = dt
+
 
 def callback(vel, my_env):
     my_env.set_linear_velocity(vel.linear.x, vel.linear.y)

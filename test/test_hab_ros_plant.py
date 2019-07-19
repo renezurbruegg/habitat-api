@@ -53,3 +53,20 @@ def test_env_update_angular():
     import numpy as np
     assert np.array_equal(initial_observations['depth'],post_observations['depth'])==False
 
+def test_env_update_accel():
+    import numpy as np
+    my_env = habitat_ros.sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
+    my_env.set_dt(1)
+    my_env.set_acceleration(2)
+    initial_position =  my_env.env._sim._sim.agents[0].state.position
+    #my_env.start()
+    my_env.set_linear_velocity(1,2)
+    my_env.update_orientation()
+    post_position = my_env.env._sim._sim.agents[0].state.position
+    
+    v_actual = my_env.prevv+my_env.acceleration*my_env._dt
+    #finish
+
+    d_should_travel = np.sqrt((1*my_env._dt)**2 + (2*my_env._dt)**2)
+    assert d_should_travel*0.9<(np.linalg.norm(post_position-initial_position))<d_should_travel*1.1
+
