@@ -23,6 +23,8 @@ var/
 .installed.cfg
 *.egg
 
+3rdparty/
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -77,7 +79,7 @@ target/
 .ipynb_checkpoints/
 
 # exclude data from source control by default
-data
+
 
 # Mac OS-specific storage files
 .DS_Store
@@ -91,3 +93,15 @@ pyproject.toml
 
 # vim
 *.swp
+
+*.png
+
+core
+
+unknown-0\.0-py27_0\.tar\.bz2
+
+frames\.pdf
+
+*.pickle
+
+*.p

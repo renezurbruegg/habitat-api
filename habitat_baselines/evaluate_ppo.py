@@ -5,51 +5,72 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
-import glob
-import os
 import time
-from typing import Optional
-
 import torch
+import time
 
 import habitat
 from config.default import get_config as cfg_baseline
 from habitat import logger
 from habitat.config.default import get_config
-from habitat.utils.visualizations.utils import (
-    images_to_video,
-    observations_to_image,
-)
+from config.default import get_config as cfg_baseline
+import cv2
+
+from train_ppo import make_env_fn
 from rl.ppo import PPO, Policy
 from rl.ppo.utils import batch_obs
 from tensorboard_utils import get_tensorboard_writer
 from train_ppo import make_env_fn
+import cv2
+import matplotlib.pyplot as plt
 
+import pickle
+global obs_list
+obs_list = []
+global test_recurrent_hidden_states_list 
+test_recurrent_hidden_states_list =[]
 
-def poll_checkpoint_folder(
-    checkpoint_folder: str, previous_ckpt_ind: int
-) -> Optional[str]:
-    r""" Return (previous_ckpt_ind + 1)th checkpoint in checkpoint folder
-    (sorted by time of last modification).
+global mask_list 
+mask_list =[]
 
-    Args:
-        checkpoint_folder: directory to look for checkpoints.
-        previous_ckpt_ind: index of checkpoint last returned.
+def transform_rgb_bgr(image):
+    return image[:, :, [2, 1, 0]]
 
-    Returns:
-        return checkpoint path if (previous_ckpt_ind + 1)th checkpoint is found
-        else return None.
-    """
-    assert os.path.isdir(checkpoint_folder), "invalid checkpoint folder path"
-    models_paths = list(
-        filter(os.path.isfile, glob.glob(checkpoint_folder + "/*"))
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-path", type=str, required=True)
+    parser.add_argument("--sim-gpu-id", type=int, required=True)
+    parser.add_argument("--pth-gpu-id", type=int, required=True)
+    parser.add_argument("--num-processes", type=int, required=True)
+    parser.add_argument("--hidden-size", type=int, default=512)
+    parser.add_argument("--count-test-episodes", type=int, default=100)
+    parser.add_argument(
+        "--sensors",
+        type=str,
+        default="DEPTH_SENSOR",
+        help="comma separated string containing different"
+        "sensors to use, currently 'RGB_SENSOR' and"
+        "'DEPTH_SENSOR' are supported",
     )
-    models_paths.sort(key=os.path.getmtime)
-    ind = previous_ckpt_ind + 1
-    if ind < len(models_paths):
-        return models_paths[ind]
-    return None
+    parser.add_argument(
+        "--task-config",
+        type=str,
+        default="configs/tasks/pointnav.yaml",
+        help="path to config yaml containing information about task",
+    )
+    
+    foo =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth", \
+    '--sim-gpu-id', '0',\
+    '--pth-gpu-id','0', \
+    '--num-processes', '1', \
+    '--count-test-episodes', '100', \
+    '--task-config', "configs/tasks/pointnav.yaml" ]
+    args = parser.parse_args(foo)
+    #args = parser.parse_args()
 
+ 
+
+    device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
 def generate_video(
     args, images, episode_id, checkpoint_idx, spl, tb_writer, fps=10
@@ -151,25 +172,44 @@ def eval_checkpoint(checkpoint_path, args, writer, cur_ckpt_idx=0):
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
     stats_episodes = dict()  # dict of dicts that stores stats per episode
 
-    rgb_frames = None
-    if args.video_option:
-        rgb_frames = [[]] * args.num_processes
-        os.makedirs(args.video_dir, exist_ok=True)
+    while episode_counts.sum() < args.count_test_episodes:
+        # test_recurrent_hidden_states_list.append(test_recurrent_hidden_states)
+        # pickle_out = open("hab_recurrent_states.pickle","wb")
+        # pickle.dump(test_recurrent_hidden_states_list, pickle_out)
+        # pickle_out.close()
+        # obs_list.append(observations[0])
+        # pickle_out = open("hab_obs_list.pickle","wb")
+        # pickle.dump(obs_list, pickle_out)
+        # pickle_out.close()
 
-    while len(stats_episodes) < args.count_test_episodes and envs.num_envs > 0:
-        current_episodes = envs.current_episodes()
-
+        # mask_list.append(not_done_masks)
+        # pickle_out = open("hab_mask_list.pickle","wb")
+        # pickle.dump(mask_list, pickle_out)
+        # pickle_out.close()
+        
         with torch.no_grad():
             _, actions, _, test_recurrent_hidden_states = actor_critic.act(
                 batch,
                 test_recurrent_hidden_states,
                 not_done_masks,
-                deterministic=False,
+                deterministic=True,
             )
+        
+        print ("action_id is " + str(actions.item()))
+        print('point goal is ' + str(observations[0]['pointgoal']))
 
         outputs = envs.step([a[0].item() for a in actions])
 
         observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
+
+        #for visualizing where robot is going
+        #cv2.imshow("RGB", transform_rgb_bgr(observations[0]["rgb"]))
+        cv2.imshow("Depth", observations[0]["depth"])
+        cv2.waitKey(100)
+        time.sleep(0.2)
+      
+            
+
         batch = batch_obs(observations)
         for sensor in batch:
             batch[sensor] = batch[sensor].to(device)
