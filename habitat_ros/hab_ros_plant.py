@@ -201,6 +201,7 @@ def callback(vel, my_env):
 
 
 def main():
+    global lock
     
     rospy.init_node("plant_model", anonymous=True)
 
@@ -214,9 +215,12 @@ def main():
     dt_list = [0.009, 0.009, 0.009]
     while not rospy.is_shutdown():
         
-
         start_time = time.time()
+
+        lock.acquire()
         my_env.update_orientation()
+        lock.release()
+
         dt_list.insert(0, time.time()-start_time)
         #print(time.time()-start_time)
         dt_list.pop()
