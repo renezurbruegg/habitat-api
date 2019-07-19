@@ -35,7 +35,7 @@ class sim_env(threading.Thread):
     _y_axis = 1
     _z_axis = 2
     _dt = 0.00478
-    _sensor_rate = 40  # hz
+    _sensor_rate = 80  # hz
     _r = rospy.Rate(_sensor_rate)
 
     def __init__(self, env_config_file):
@@ -71,7 +71,6 @@ class sim_env(threading.Thread):
         vx = state.velocity[1]
         dt = self._dt
 
-        # start_pos = self.env._sim._sim.agents[0].scene_node.absolute_position()
         start_pos = self.env._sim._sim.agents[0].scene_node.absolute_translation
 
         ax = (
@@ -179,7 +178,7 @@ def main():
     # start the thread that publishes sensor readings
     my_env.start()
 
-    rospy.Subscriber("cmd_vel", Twist, callback, (my_env))
+    rospy.Subscriber("cmd_vel", Twist, callback, (my_env),queue_size=1)
     # define a list capturing how long it took
     # to update agent orientation for past 3 instances
     dt_list = [0.009, 0.009, 0.009]
