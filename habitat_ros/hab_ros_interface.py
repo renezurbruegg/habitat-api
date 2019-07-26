@@ -26,7 +26,7 @@ import cv2
 count = 0
 
 lock = threading.Lock()
-rospy.init_node("habitat", anonymous=False)
+rospy.init_node("plant_model", anonymous=True)
 
 
 class sim_env(threading.Thread):
@@ -47,8 +47,9 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].state.velocity = np.float32([0, 0, 0])
         self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0, 0, 0])
 
-        self._pub_rgb = rospy.Publisher("~rgb", numpy_msg(Floats), queue_size=1)
-        self._pub_depth = rospy.Publisher("~depth", numpy_msg(Floats), queue_size=1)
+        self._pub_rgb = rospy.Publisher("rgb", numpy_msg(Floats), queue_size=1)
+        self._pub_depth = rospy.Publisher("depth", numpy_msg(Floats), queue_size=1)
+        self._pub_pose = rospy.Publisher("agent_pose", numpy_msg(Floats), queue_size=1)
         self._pub_depth_and_pointgoal = rospy.Publisher(
             "depth_and_pointgoal", numpy_msg(Floats), queue_size=1
         )
@@ -171,6 +172,7 @@ def callback(vel, my_env):
 
 def main():
     global lock
+    rospy.init_node("plant_model", anonymous=True)
 
     my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd_gibson.yaml")
     # start the thread that publishes sensor readings
@@ -179,7 +181,6 @@ def main():
     rospy.Subscriber("cmd_vel", Twist, callback, (my_env),queue_size=1)
     # define a list capturing how long it took
     # to update agent orientation for past 3 instances
-    #TODO modify dt_list to depend on r1
     dt_list = [0.009, 0.009, 0.009]
     r1 = rospy.Rate(50)
     while not rospy.is_shutdown():
