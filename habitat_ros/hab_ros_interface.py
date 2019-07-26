@@ -35,7 +35,7 @@ class sim_env(threading.Thread):
     _y_axis = 1
     _z_axis = 2
     _dt = 0.00478
-    _sensor_rate = 80  # hz
+    _sensor_rate = 50  # hz
     _r = rospy.Rate(_sensor_rate)
 
     def __init__(self, env_config_file):
@@ -174,7 +174,7 @@ def main():
     global lock
     rospy.init_node("plant_model", anonymous=True)
 
-    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
+    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd_gibson.yaml")
     # start the thread that publishes sensor readings
     my_env.start()
 
@@ -182,6 +182,7 @@ def main():
     # define a list capturing how long it took
     # to update agent orientation for past 3 instances
     dt_list = [0.009, 0.009, 0.009]
+    r1 = rospy.Rate(50)
     while not rospy.is_shutdown():
 
         start_time = time.time()
@@ -190,9 +191,12 @@ def main():
         my_env.update_orientation()
         lock.release()
 
+        r1.sleep()
         dt_list.insert(0, time.time() - start_time)
         dt_list.pop()
         my_env.set_dt(sum(dt_list) / len(dt_list))
+        print(sum(dt_list) / len(dt_list))
+        
 
 
 if __name__ == "__main__":
