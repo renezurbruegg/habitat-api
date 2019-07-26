@@ -1,3 +1,3 @@
-from habitat_ros.hab_ros_plant import sim_env
+from habitat_ros.hab_ros_interface import sim_env
 
-__all__ = ["hab_ros_plant"]
+__all__ = ["hab_ros_interface"]
