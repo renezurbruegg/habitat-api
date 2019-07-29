@@ -42,6 +42,32 @@ def check_sim_obs(obs, sensor):
         "simulator's observations".format(sensor.uuid)
     )
 
+@registry.register_sensor
+class HabitatSimBCSensor(RGBSensor):
+    sim_sensor_type: habitat_sim.SensorType
+
+    def __init__(self, config):
+        self.sim_sensor_type = habitat_sim.SensorType.COLOR
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return "bc_sensor"
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.config.HEIGHT, self.config.WIDTH, RGBSENSOR_DIMENSION),
+            dtype=np.uint8,
+        )
+
+    def get_observation(self, sim_obs):
+        obs = sim_obs.get(self.uuid, None)
+        check_sim_obs(obs, self)
+
+        # remove alpha channel
+        obs = obs[:, :, :RGBSENSOR_DIMENSION]
+        return obs
 
 @registry.register_sensor
 class HabitatSimRGBSensor(RGBSensor):
