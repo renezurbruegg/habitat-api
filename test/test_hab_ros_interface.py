@@ -53,6 +53,7 @@ def test_env_update_angular():
     import numpy as np
     assert np.array_equal(initial_observations['depth'],post_observations['depth'])==False
 
+#TODO test to see if setting maximum acceleration gets agent to the right location
 def test_env_update_accel():
     import numpy as np
     my_env = habitat_ros.sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
