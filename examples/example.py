@@ -5,15 +5,17 @@
 # LICENSE file in the root directory of this source tree.
 
 import habitat
-
+import cv2
 
 def example():
-    env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav.yaml"))
+    env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd_gibson.yaml"))
 
     print("Environment creation successful")
     observations = env.reset()
 
     print("Agent stepping around inside environment.")
+    cv2.imshow("bc_sensor", observations['bc_sensor'])
+    cv2.waitKey()
     count_steps = 0
     while not env.episode_over:
         observations = env.step(0)
