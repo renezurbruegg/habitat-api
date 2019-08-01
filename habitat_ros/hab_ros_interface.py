@@ -112,7 +112,6 @@ class sim_env(threading.Thread):
         self._render()
 
     def run(self):
-        global count
         global lock
         """Publish sensor readings through ROS on a different thread.
             This method defines what the thread does when the start() method
@@ -120,9 +119,6 @@ class sim_env(threading.Thread):
         """
         while not rospy.is_shutdown():
             lock.acquire()
-            
-            count = count + 1
-            print(count)
             self._pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
             # multiply by 10 to get distance in meters
             self._pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
@@ -132,7 +128,6 @@ class sim_env(threading.Thread):
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             self._pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
 
-            print("in running")
             lock.release()
             self._r.sleep()
 
@@ -177,31 +172,25 @@ def main():
     # start the thread that publishes sensor readings
     my_env.start()
 
-    rospy.Subscriber("cmd_vel", Twist, callback, (my_env),queue_size=1)
+    rospy.Subscriber("cmd_vel", Twist, callback, (my_env), queue_size=1)
     # define a list capturing how long it took
     # to update agent orientation for past 3 instances
-    #TODO modify dt_list to depend on r1
+    # TODO modify dt_list to depend on r1
     dt_list = [0.009, 0.009, 0.009]
-    r1 = rospy.Rate(50)
     while not rospy.is_shutdown():
-        
 
         start_time = time.time()
-        
+
         lock.acquire()
 
-        cv2.imshow("bc_sensor", my_env.observations['bc_sensor'])
-        cv2.waitKey(100)
-        time.sleep(0.1)
+        # cv2.imshow("bc_sensor", my_env.observations['bc_sensor'])
+        # cv2.waitKey(100)
+        # time.sleep(0.1)
         my_env.update_orientation()
         lock.release()
-
-        r1.sleep()
         dt_list.insert(0, time.time() - start_time)
         dt_list.pop()
         my_env.set_dt(sum(dt_list) / len(dt_list))
-        print(sum(dt_list) / len(dt_list))
-        
 
 
 if __name__ == "__main__":
