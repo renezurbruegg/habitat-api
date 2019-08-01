@@ -151,24 +151,13 @@ def callback(vel, my_env):
     lock.acquire()
     my_env.set_linear_velocity(vel.linear.x, vel.linear.y)
     my_env.set_yaw(vel.angular.z)
-    print(
-        "inside call back args vel is "
-        + str(
-            np.concatenate(
-                (
-                    my_env.env._sim._sim.agents[0].state.velocity,
-                    my_env.env._sim._sim.agents[0].state.angular_velocity,
-                )
-            )
-        )
-    )
     lock.release()
 
 
 def main():
     global lock
 
-    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd_gibson.yaml")
+    my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
     # start the thread that publishes sensor readings
     my_env.start()
 
