@@ -120,6 +120,7 @@ class sim_env(threading.Thread):
         """
         while not rospy.is_shutdown():
             lock.acquire()
+            
             count = count + 1
             print(count)
             self._pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
@@ -183,10 +184,15 @@ def main():
     dt_list = [0.009, 0.009, 0.009]
     r1 = rospy.Rate(50)
     while not rospy.is_shutdown():
+        
 
         start_time = time.time()
-
+        
         lock.acquire()
+
+        cv2.imshow("bc_sensor", my_env.observations['bc_sensor'])
+        cv2.waitKey(100)
+        time.sleep(0.1)
         my_env.update_orientation()
         lock.release()
 

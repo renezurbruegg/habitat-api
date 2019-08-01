@@ -6,11 +6,11 @@ SIMULATOR:
   HABITAT_SIM_V0:
     GPU_DEVICE_ID: 0
   RGB_SENSOR:
-    WIDTH: 256
-    HEIGHT: 256
+    WIDTH: 720
+    HEIGHT: 720
   DEPTH_SENSOR:
-    WIDTH: 256
-    HEIGHT: 256
+    WIDTH: 720
+    HEIGHT: 720
 TASK:
   TYPE: Nav-v0
   SUCCESS_DISTANCE: 0.2
@@ -25,7 +25,3 @@ TASK:
     TYPE: SPL
     SUCCESS_DISTANCE: 0.2
 
-# DATASET:
-#   TYPE: PointNav-v1
-#   SPLIT: val
-#   DATA_PATH: data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz

@@ -15,7 +15,7 @@ SIMULATOR:
     HEIGHT: 720
     WIDTH: 720
     HFOV: 45
-    POSITION: [0, 0.2, 0]
+    POSITION: [0, 1.25, 3.14]
     TYPE: HabitatSimBCSensor
 
 TASK:
