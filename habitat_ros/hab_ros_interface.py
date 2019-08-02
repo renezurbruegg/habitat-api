@@ -23,7 +23,7 @@ import numpy as np
 import time
 import cv2
 
-count = 0
+SENSOR_RESOLUTION = 720
 
 lock = threading.Lock()
 rospy.init_node("habitat", anonymous=False)
@@ -47,6 +47,7 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].state.velocity = np.float32([0, 0, 0])
         self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0, 0, 0])
 
+        
         self._pub_rgb = rospy.Publisher("~rgb", numpy_msg(Floats), queue_size=1)
         self._pub_depth = rospy.Publisher("~depth", numpy_msg(Floats), queue_size=1)
         self._pub_depth_and_pointgoal = rospy.Publisher(
@@ -119,9 +120,13 @@ class sim_env(threading.Thread):
         """
         while not rospy.is_shutdown():
             lock.acquire()
-            self._pub_rgb.publish(np.float32(self.observations["rgb"].ravel()))
+
+            rgb_with_res = np.concatenate((np.float32(self.observations["rgb"].ravel()),np.array([SENSOR_RESOLUTION,SENSOR_RESOLUTION])))
+            self._pub_rgb.publish(np.float32(rgb_with_res))
+
             # multiply by 10 to get distance in meters
-            self._pub_depth.publish(np.float32(self.observations["depth"].ravel()) * 10)
+            depth_with_res = np.concatenate((np.float32(self.observations["depth"].ravel()*10),np.array([SENSOR_RESOLUTION,SENSOR_RESOLUTION])))
+            self._pub_depth.publish(np.float32(depth_with_res))
 
             depth_np = np.float32(self.observations["depth"].ravel())
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
