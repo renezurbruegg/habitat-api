@@ -166,8 +166,8 @@ class sim_env(threading.Thread):
         lock.acquire()
         self._update_attitude()
         self._update_position()
-        lock.release()
         self._render()
+        lock.release()
 
     def set_dt(self, dt):
         self._dt = dt
