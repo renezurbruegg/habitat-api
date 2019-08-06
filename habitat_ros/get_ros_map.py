@@ -6,6 +6,7 @@
 
 
 import os
+import argparse
 
 import imageio
 import numpy as np
@@ -50,8 +51,11 @@ def get_topdown_map(config_paths, map_name):
 
 
 def main():
-    get_topdown_map("configs/tasks/pointnav_rgbd_gibson.yaml", "default")
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config-path", type=str, required=True)
+    parser.add_argument("--map-name", type=str, required=True)
+    args = parser.parse_args()
+    get_topdown_map(args.config_path, args.map_name)
 
 if __name__ == "__main__":
     main()
