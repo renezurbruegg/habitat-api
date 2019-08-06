@@ -39,15 +39,17 @@ class sim_env(threading.Thread):
     def __init__(self, env_config_file):
         threading.Thread.__init__(self)
         self.env = habitat.Env(config=habitat.get_config(env_config_file))
-        #always assume height equals width
-        self._sensor_resolution = {"RGB":self.env._sim.config['RGB_SENSOR']['HEIGHT'],"DEPTH":self.env._sim.config['DEPTH_SENSOR']['HEIGHT']}
+        # always assume height equals width
+        self._sensor_resolution = {
+            "RGB": self.env._sim.config["RGB_SENSOR"]["HEIGHT"],
+            "DEPTH": self.env._sim.config["DEPTH_SENSOR"]["HEIGHT"],
+        }
         self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
         self.observations = self.env.reset()
 
         self.env._sim._sim.agents[0].state.velocity = np.float32([0, 0, 0])
         self.env._sim._sim.agents[0].state.angular_velocity = np.float32([0, 0, 0])
 
-        
         self._pub_rgb = rospy.Publisher("~rgb", numpy_msg(Floats), queue_size=1)
         self._pub_depth = rospy.Publisher("~depth", numpy_msg(Floats), queue_size=1)
         self._pub_depth_and_pointgoal = rospy.Publisher(
@@ -91,7 +93,7 @@ class sim_env(threading.Thread):
         filter_end = self.env._sim._sim.agents[0].move_filter_fn(start_pos, end_pos)
         # Update the position to respect the filter
         self.env._sim._sim.agents[0].scene_node.translate(filter_end - end_pos)
-        self._render()
+        # self._render()
 
     def _update_attitude(self):
         """ update agent orientation given angular velocity and delta time"""
@@ -110,10 +112,9 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].scene_node.rotation = self.env._sim._sim.agents[
             0
         ].scene_node.rotation.normalized()
-        self._render()
+        # self._render()
 
     def run(self):
-        global lock
         """Publish sensor readings through ROS on a different thread.
             This method defines what the thread does when the start() method
             of the threading class is called
@@ -121,19 +122,37 @@ class sim_env(threading.Thread):
         while not rospy.is_shutdown():
             lock.acquire()
 
-            rgb_with_res = np.concatenate((np.float32(self.observations["rgb"].ravel()),np.array([self._sensor_resolution["RGB"],self._sensor_resolution["RGB"]])))
-            self._pub_rgb.publish(np.float32(rgb_with_res))
+            rgb_with_res = np.concatenate(
+                (
+                    np.float32(self.observations["rgb"].ravel()),
+                    np.array(
+                        [self._sensor_resolution["RGB"], self._sensor_resolution["RGB"]]
+                    ),
+                )
+            )
 
             # multiply by 10 to get distance in meters
-            depth_with_res = np.concatenate((np.float32(self.observations["depth"].ravel()*10),np.array([self._sensor_resolution["DEPTH"],self._sensor_resolution["DEPTH"]])))
-            self._pub_depth.publish(np.float32(depth_with_res))
+            depth_with_res = np.concatenate(
+                (
+                    np.float32(self.observations["depth"].ravel() * 10),
+                    np.array(
+                        [
+                            self._sensor_resolution["DEPTH"],
+                            self._sensor_resolution["DEPTH"],
+                        ]
+                    ),
+                )
+            )
 
             depth_np = np.float32(self.observations["depth"].ravel())
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
+            lock.release()
+
+            self._pub_rgb.publish(np.float32(rgb_with_res))
+            self._pub_depth.publish(np.float32(depth_with_res))
+
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             self._pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
-
-            lock.release()
             self._r.sleep()
 
     def set_linear_velocity(self, vx, vy):
@@ -144,15 +163,17 @@ class sim_env(threading.Thread):
         self.env._sim._sim.agents[0].state.angular_velocity[2] = yaw
 
     def update_orientation(self):
+        lock.acquire()
         self._update_attitude()
         self._update_position()
+        lock.release()
+        self._render()
 
     def set_dt(self, dt):
         self._dt = dt
 
 
 def callback(vel, my_env):
-    global lock
     lock.acquire()
     my_env.set_linear_velocity(vel.linear.x, vel.linear.y)
     my_env.set_yaw(vel.angular.z)
@@ -160,7 +181,6 @@ def callback(vel, my_env):
 
 
 def main():
-    global lock
 
     my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
     # start the thread that publishes sensor readings
@@ -174,14 +194,11 @@ def main():
     while not rospy.is_shutdown():
 
         start_time = time.time()
-
-        lock.acquire()
-
         # cv2.imshow("bc_sensor", my_env.observations['bc_sensor'])
         # cv2.waitKey(100)
         # time.sleep(0.1)
         my_env.update_orientation()
-        lock.release()
+
         dt_list.insert(0, time.time() - start_time)
         dt_list.pop()
         my_env.set_dt(sum(dt_list) / len(dt_list))
