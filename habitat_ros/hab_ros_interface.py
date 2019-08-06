@@ -39,7 +39,8 @@ class sim_env(threading.Thread):
     def __init__(self, env_config_file):
         threading.Thread.__init__(self)
         self.env = habitat.Env(config=habitat.get_config(env_config_file))
-        self._sensor_resolution = self.env._sim.config['RGB_SENSOR']['HEIGHT']
+        #always assume height equals width
+        self._sensor_resolution = {"RGB":self.env._sim.config['RGB_SENSOR']['HEIGHT'],"DEPTH":self.env._sim.config['DEPTH_SENSOR']['HEIGHT']}
         self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
         self.observations = self.env.reset()
 
@@ -120,11 +121,11 @@ class sim_env(threading.Thread):
         while not rospy.is_shutdown():
             lock.acquire()
 
-            rgb_with_res = np.concatenate((np.float32(self.observations["rgb"].ravel()),np.array([self._sensor_resolution,self._sensor_resolution])))
+            rgb_with_res = np.concatenate((np.float32(self.observations["rgb"].ravel()),np.array([self._sensor_resolution["RGB"],self._sensor_resolution["RGB"]])))
             self._pub_rgb.publish(np.float32(rgb_with_res))
 
             # multiply by 10 to get distance in meters
-            depth_with_res = np.concatenate((np.float32(self.observations["depth"].ravel()*10),np.array([self._sensor_resolution,self._sensor_resolution])))
+            depth_with_res = np.concatenate((np.float32(self.observations["depth"].ravel()*10),np.array([self._sensor_resolution["DEPTH"],self._sensor_resolution["DEPTH"]])))
             self._pub_depth.publish(np.float32(depth_with_res))
 
             depth_np = np.float32(self.observations["depth"].ravel())
