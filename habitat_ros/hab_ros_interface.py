@@ -8,7 +8,9 @@
 import rospy
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist,Pose,PoseStamped
+from std_msgs.msg import Header
+
 import threading
 import sys
 
@@ -55,6 +57,7 @@ class sim_env(threading.Thread):
         self._pub_depth_and_pointgoal = rospy.Publisher(
             "depth_and_pointgoal", numpy_msg(Floats), queue_size=1
         )
+        self._pub_pose = rospy.Publisher('~pose', PoseStamped, queue_size=1)
         print("created habitat_plant succsefully")
 
     def _render(self):
@@ -121,6 +124,27 @@ class sim_env(threading.Thread):
         """
         while not rospy.is_shutdown():
             lock.acquire()
+            h = Header()
+            h.stamp = rospy.Time.now()
+            h.frame_id = "odom"
+            p = Pose()
+            hab_pos = self.env._sim._sim.agents[0].state.position
+            hab_rot = self.env._sim._sim.agents[0].state.rotation
+            #print(hab_rot.x)
+            p.position.x = -hab_pos[2]
+            p.position.y = -hab_pos[0]
+            p.position.z = hab_pos[1]
+            #ros_quaternion_orientwxyz = np.quaternion(hab_rot[0],-hab_rot[3],-hab_rot[1],hab_rot[2])
+
+            p.orientation.x = -hab_rot.z
+            p.orientation.y = -hab_rot.x
+            p.orientation.z = hab_rot.y
+            p.orientation.w = hab_rot.w
+
+            ps = PoseStamped()
+            ps.header = h
+            ps.pose = p
+            self._pub_pose.publish(ps)
 
             rgb_with_res = np.concatenate(
                 (
@@ -192,7 +216,6 @@ def main():
     # TODO modify dt_list to depend on r1
     dt_list = [0.009, 0.009, 0.009]
     while not rospy.is_shutdown():
-
         start_time = time.time()
         # cv2.imshow("bc_sensor", my_env.observations['bc_sensor'])
         # cv2.waitKey(100)
