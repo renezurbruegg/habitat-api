@@ -24,6 +24,7 @@ import magnum as mn
 import numpy as np
 import time
 import cv2
+from habitat.utils.visualizations.maps import COORDINATE_MIN, COORDINATE_MAX
 
 lock = threading.Lock()
 rospy.init_node("habitat", anonymous=False)
@@ -40,7 +41,14 @@ class sim_env(threading.Thread):
 
     def __init__(self, env_config_file):
         threading.Thread.__init__(self)
-        self.env = habitat.Env(config=habitat.get_config(env_config_file))
+        config = habitat.get_config(config_paths=env_config_file)
+        config.defrost()
+        config.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
+        config.TASK.SENSORS.append("HEADING_SENSOR")
+        config.freeze()
+
+        self.env = habitat.Env(config=config)
+        
         # always assume height equals width
         self._sensor_resolution = {
             "RGB": self.env._sim.config["RGB_SENSOR"]["HEIGHT"],
@@ -69,6 +77,9 @@ class sim_env(threading.Thread):
                 observations=self.observations, episode=self.env.current_episode
             )
         )
+        self.env._task.measurements.update_measures(
+            episode=self.env.current_episode,action=987
+        )#action is a dummy value and is not important for this purpose
 
     def _update_position(self):
         state = self.env.sim.get_agent_state(0)
@@ -131,10 +142,17 @@ class sim_env(threading.Thread):
             hab_pos = self.env._sim._sim.agents[0].state.position
             hab_rot = self.env._sim._sim.agents[0].state.rotation
             #print(hab_rot.x)
-            p.position.x = -hab_pos[2]
-            p.position.y = -hab_pos[0]
-            p.position.z = hab_pos[1]
-            #ros_quaternion_orientwxyz = np.quaternion(hab_rot[0],-hab_rot[3],-hab_rot[1],hab_rot[2])
+            
+            print(self.env.get_metrics()['top_down_map'])
+            agent_map_coord = self.env.get_metrics()['top_down_map']['agent_map_coord']
+            print('got agent_map_coord')
+            map_resolution = self.env._config['TASK']['TOP_DOWN_MAP']['MAP_RESOLUTION']
+            print(map_resolution)
+            agent_map_coord = self.env.get_metrics()['top_down_map']['agent_map_coord']
+
+            p.position.x = -agent_map_coord[1]*(COORDINATE_MAX-COORDINATE_MIN)/map_resolution#-hab_pos[2]
+            p.position.y = -agent_map_coord[0]*(COORDINATE_MAX-COORDINATE_MIN)/map_resolution#-hab_pos[0]
+            p.position.z = 0 #hab_pos[1]
 
             p.orientation.x = -hab_rot.z
             p.orientation.y = -hab_rot.x
@@ -207,6 +225,7 @@ def callback(vel, my_env):
 def main():
 
     my_env = sim_env(env_config_file="configs/tasks/pointnav_rgbd.yaml")
+    my_env._render()
     # start the thread that publishes sensor readings
     my_env.start()
 

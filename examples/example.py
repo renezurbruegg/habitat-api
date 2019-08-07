@@ -14,8 +14,8 @@ def example():
     observations = env.reset()
 
     print("Agent stepping around inside environment.")
-    cv2.imshow("bc_sensor", observations['bc_sensor'])
-    cv2.waitKey()
+    #cv2.imshow("bc_sensor", observations['bc_sensor'])
+    #cv2.waitKey()
     count_steps = 0
     while not env.episode_over:
         observations = env.step(0)
