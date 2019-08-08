@@ -43,6 +43,7 @@ class sim_env(threading.Thread):
         self._sensor_resolution = {
             "RGB": self.env._sim.config["RGB_SENSOR"]["HEIGHT"],
             "DEPTH": self.env._sim.config["DEPTH_SENSOR"]["HEIGHT"],
+            "BC_SENSOR":self.env._sim.config["BC_SENSOR"]["HEIGHT"]
         }
         self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
         self.observations = self.env.reset()
@@ -52,6 +53,10 @@ class sim_env(threading.Thread):
 
         self._pub_rgb = rospy.Publisher("~rgb", numpy_msg(Floats), queue_size=1)
         self._pub_depth = rospy.Publisher("~depth", numpy_msg(Floats), queue_size=1)
+
+        #additional RGB sensor I configured
+        self._pub_bc_sensor = rospy.Publisher("~bc_sensor", numpy_msg(Floats), queue_size=1)
+
         self._pub_depth_and_pointgoal = rospy.Publisher(
             "depth_and_pointgoal", numpy_msg(Floats), queue_size=1
         )
@@ -144,12 +149,25 @@ class sim_env(threading.Thread):
                 )
             )
 
+            bc_sensor_with_res = np.concatenate(
+                (
+                    np.float32(self.observations["bc_sensor"].ravel()),
+                    np.array(
+                        [
+                            self._sensor_resolution["BC_SENSOR"],
+                            self._sensor_resolution["BC_SENSOR"],
+                        ]
+                    ),
+                )
+            )
+
             depth_np = np.float32(self.observations["depth"].ravel())
             pointgoal_np = np.float32(self.observations["pointgoal"].ravel())
             lock.release()
 
             self._pub_rgb.publish(np.float32(rgb_with_res))
             self._pub_depth.publish(np.float32(depth_with_res))
+            self._pub_bc_sensor.publish(np.float32(bc_sensor_with_res))
 
             depth_pointgoal_np = np.concatenate((depth_np, pointgoal_np))
             self._pub_depth_and_pointgoal.publish(np.float32(depth_pointgoal_np))
