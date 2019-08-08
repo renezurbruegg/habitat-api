@@ -51,6 +51,7 @@ def get_topdown_map(config_paths, map_name):
 
 
 def main():
+    #first parameter is config path, second parameter is map name
     get_topdown_map("configs/tasks/pointnav_rgbd_gibson.yaml", "default")
 
 
