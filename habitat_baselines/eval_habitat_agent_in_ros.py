@@ -6,7 +6,14 @@
 
 # LICENSE file in the root directory of this source tree.
 
-# this script is a prototype implementation of transferring Habitat trained agent to the real world/physics enabled environment
+# this script is a prototype implementation of transferring Habitat trained agent to the real world/physics enabled environment.
+# in summary, this script does the following:
+# 1. import habitat trained model
+# 2. subscribe to topic that contain sensor readings related to habitat trained model
+# 3. obtain an action_id from trained model and command agent to perform that action. Then stop subscribing to the topic
+# 4. Wait until agent finishes that action command or some time has passed
+# 5. Repeat steps 2-4 until agent reaches the goal
+
 
 # To run:
 # 1. start roscore
