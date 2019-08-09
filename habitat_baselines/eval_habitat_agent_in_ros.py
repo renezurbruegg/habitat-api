@@ -9,15 +9,15 @@
 # this script is a prototype implementation of transferring Habitat trained agent to the real world/physics enabled environment
 
 # To run:
-#1. start roscore
-#2. source your ros related setup.bash files
-#3. run this script with python (not rosrun!)
-#4. If testing in physics enabled habitat environment, run hab_ros_interface.py 
-#4.1 If testing in a gazebo environment, first roslaunch habitat_interface trained_agent_in_gazebo.launch, then rosrun habitat_interface get_pointnav_depth_obs.py
-#5. run roslaunch habitat_interface default.launch to visualize what the agent is doing
+# 1. start roscore
+# 2. source your ros related setup.bash files
+# 3. run this script with python (not rosrun!)
+# 4. If testing in physics enabled habitat environment, run hab_ros_interface.py. Important! depth camera need resolution 256x256
+# 4.1 If testing in a gazebo environment, first roslaunch habitat_interface trained_agent_in_gazebo.launch, then rosrun habitat_interface get_pointnav_depth_obs.py
+# 5. run roslaunch habitat_interface default.launch to visualize what the agent is doing
 
 import sys
-import os 
+import os
 
 PKG = "numpy_tutorial"
 import roslib
@@ -29,9 +29,6 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from geometry_msgs.msg import Twist
 import numpy as np
-
-
-
 
 
 initial_sys_path = sys.path
@@ -51,23 +48,23 @@ from rl.ppo.utils import batch_obs
 import time
 
 
-
-
 sys.path = initial_sys_path
 
 
-pub_vel = rospy.Publisher('cmd_vel', Twist,queue_size=1)
-rospy.init_node('controller_nn', anonymous=True)
+pub_vel = rospy.Publisher("cmd_vel", Twist, queue_size=1)
+rospy.init_node("controller_nn", anonymous=True)
 
-#define some useful global variables
+# define some useful global variables
 flag = 2
 observation = {}
 t_prev_update = time.time()
 
+
 def pol2cart(rho, phi):
     x = rho * np.cos(phi)
     y = rho * np.sin(phi)
-    return(x, y)
+    return (x, y)
+
 
 def main():
 
@@ -92,15 +89,22 @@ def main():
         default="configs/tasks/pointnav.yaml",
         help="path to config yaml containing information about task",
     )
-    
-    cmd_line_inputs =     ['--model-path', "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth", \
-    '--sim-gpu-id', '0',\
-    '--pth-gpu-id','0', \
-    '--num-processes', '1', \
-    '--count-test-episodes', '100', \
-    '--task-config', "configs/tasks/pointnav.yaml" ]
-    args = parser.parse_args(cmd_line_inputs)
 
+    cmd_line_inputs = [
+        "--model-path",
+        "/home/bruce/NSERC_2019/habitat-api/data/checkpoints/depth.pth",
+        "--sim-gpu-id",
+        "0",
+        "--pth-gpu-id",
+        "0",
+        "--num-processes",
+        "1",
+        "--count-test-episodes",
+        "100",
+        "--task-config",
+        "configs/tasks/pointnav.yaml",
+    ]
+    args = parser.parse_args(cmd_line_inputs)
 
     device = torch.device("cuda:{}".format(args.pth_gpu_id))
 
@@ -127,9 +131,7 @@ def main():
     envs = habitat.VectorEnv(
         make_env_fn=make_env_fn,
         env_fn_args=tuple(
-            tuple(
-                zip(env_configs, baseline_configs, range(args.num_processes))
-            )
+            tuple(zip(env_configs, baseline_configs, range(args.num_processes)))
         ),
     )
 
@@ -139,7 +141,7 @@ def main():
         observation_space=envs.observation_spaces[0],
         action_space=envs.action_spaces[0],
         hidden_size=512,
-        goal_sensor_uuid="pointgoal"
+        goal_sensor_uuid="pointgoal",
     )
     actor_critic.to(device)
 
@@ -169,7 +171,6 @@ def main():
     )
     not_done_masks = torch.zeros(args.num_processes, 1, device=device)
 
-
     def transform_callback(data):
         nonlocal actor_critic
         nonlocal batch
@@ -178,25 +179,29 @@ def main():
         global flag
         global t_prev_update
         global observation
-        
-        if flag ==2:
-            observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
-            observation['pointgoal'] = data.data[-2:]
-            flag =1
-            return 
+
+        if flag == 2:
+            observation["depth"] = np.reshape(data.data[0:-2], (256, 256, 1))
+            observation["pointgoal"] = data.data[-2:]
+            flag = 1
+            return
 
         pointgoal_received = data.data[-2:]
-        translate_amount = 0.25 #meters
-        rotate_amount = 0.174533 #radians
+        translate_amount = 0.25  # meters
+        rotate_amount = 0.174533  # radians
 
-        isrotated =  rotate_amount*0.95<=abs(pointgoal_received[1]-observation['pointgoal'][1])<=rotate_amount*1.05
-        istimeup = (time.time()-t_prev_update)>=4
+        isrotated = (
+            rotate_amount * 0.95
+            <= abs(pointgoal_received[1] - observation["pointgoal"][1])
+            <= rotate_amount * 1.05
+        )
+        istimeup = (time.time() - t_prev_update) >= 4
 
-        #print('istranslated is '+ str(istranslated))
-        #print('isrotated is '+ str(isrotated))
-        #print('istimeup is '+ str(istimeup))
+        # print('istranslated is '+ str(istranslated))
+        # print('isrotated is '+ str(isrotated))
+        # print('istimeup is '+ str(istimeup))
 
-        if (isrotated or istimeup):
+        if isrotated or istimeup:
             vel_msg = Twist()
             vel_msg.linear.x = 0
             vel_msg.linear.y = 0
@@ -206,42 +211,34 @@ def main():
             vel_msg.angular.z = 0
             pub_vel.publish(vel_msg)
             time.sleep(0.2)
-            print('entered update step')
+            print("entered update step")
 
             # cv2.imshow("Depth", observation['depth'])
             # cv2.waitKey(100)
-            
-            observation['depth'] =  np.reshape(data.data[0:-2],(256,256,1))
-            observation['pointgoal'] = data.data[-2:]
-            
+
+            observation["depth"] = np.reshape(data.data[0:-2], (256, 256, 1))
+            observation["pointgoal"] = data.data[-2:]
+
             batch = batch_obs([observation])
             for sensor in batch:
                 batch[sensor] = batch[sensor].to(device)
-            if flag ==1:
-                not_done_masks = torch.tensor(
-                    [0.0] ,
-                    dtype=torch.float,
-                    device=device,
-                )
+            if flag == 1:
+                not_done_masks = torch.tensor([0.0], dtype=torch.float, device=device)
                 flag = 0
             else:
-                not_done_masks = torch.tensor(
-                    [1.0] ,
-                    dtype=torch.float,
-                    device=device,
-                )
+                not_done_masks = torch.tensor([1.0], dtype=torch.float, device=device)
 
-            _, actions, _, test_recurrent_hidden_states= actor_critic.act(
-                batch,
-                test_recurrent_hidden_states,
-                not_done_masks,
-                deterministic=True,
+            _, actions, _, test_recurrent_hidden_states = actor_critic.act(
+                batch, test_recurrent_hidden_states, not_done_masks, deterministic=True
             )
-            
+
             action_id = actions.item()
-            print('observation received to produce action_id is '+str(observation['pointgoal']))
-            print("action_id from net is "+str(actions.item()))
-    
+            print(
+                "observation received to produce action_id is "
+                + str(observation["pointgoal"])
+            )
+            print("action_id from net is " + str(actions.item()))
+
             t_prev_update = time.time()
             vel_msg = Twist()
             vel_msg.linear.x = 0
@@ -251,21 +248,22 @@ def main():
             vel_msg.angular.y = 0
             vel_msg.angular.z = 0
             if action_id == 0:
-                vel_msg.linear.x = 0.25/4
+                vel_msg.linear.x = 0.25 / 4
                 pub_vel.publish(vel_msg)
             elif action_id == 1:
-                vel_msg.angular.z = 10/180*3.1415926
+                vel_msg.angular.z = 10 / 180 * 3.1415926
                 pub_vel.publish(vel_msg)
-            elif action_id ==2:
-                vel_msg.angular.z = -10/180*3.1415926
+            elif action_id == 2:
+                vel_msg.angular.z = -10 / 180 * 3.1415926
                 pub_vel.publish(vel_msg)
             else:
                 pub_vel.publish(vel_msg)
                 sub.unregister()
-                print('NN finished navigation task')
-            
-        
-    sub = rospy.Subscriber("depth_and_pointgoal", numpy_msg(Floats), transform_callback,queue_size=1)
+                print("NN finished navigation task")
+
+    sub = rospy.Subscriber(
+        "depth_and_pointgoal", numpy_msg(Floats), transform_callback, queue_size=1
+    )
     rospy.spin()
 
 
