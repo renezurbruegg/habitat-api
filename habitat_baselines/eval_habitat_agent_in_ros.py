@@ -5,6 +5,17 @@
 # LICENSE file in the root directory of this source tree.
 
 # LICENSE file in the root directory of this source tree.
+
+# this script is a prototype implementation of transferring Habitat trained agent to the real world/physics enabled environment
+
+# To run:
+#1. start roscore
+#2. source your ros related setup.bash files
+#3. run this script with python (not rosrun!)
+#4. If testing in physics enabled habitat environment, run hab_ros_interface.py 
+#4.1 If testing in a gazebo environment, first roslaunch habitat_interface trained_agent_in_gazebo.launch, then rosrun habitat_interface get_pointnav_depth_obs.py
+#5. run roslaunch habitat_interface default.launch to visualize what the agent is doing
+
 import sys
 import os 
 
