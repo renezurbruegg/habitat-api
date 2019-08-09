@@ -43,7 +43,7 @@ class sim_env(threading.Thread):
         self._sensor_resolution = {
             "RGB": self.env._sim.config["RGB_SENSOR"]["HEIGHT"],
             "DEPTH": self.env._sim.config["DEPTH_SENSOR"]["HEIGHT"],
-            "BC_SENSOR":self.env._sim.config["BC_SENSOR"]["HEIGHT"]
+            "BC_SENSOR": self.env._sim.config["BC_SENSOR"]["HEIGHT"],
         }
         self.env._sim._sim.agents[0].move_filter_fn = self.env._sim._sim._step_filter
         self.observations = self.env.reset()
@@ -54,8 +54,10 @@ class sim_env(threading.Thread):
         self._pub_rgb = rospy.Publisher("~rgb", numpy_msg(Floats), queue_size=1)
         self._pub_depth = rospy.Publisher("~depth", numpy_msg(Floats), queue_size=1)
 
-        #additional RGB sensor I configured
-        self._pub_bc_sensor = rospy.Publisher("~bc_sensor", numpy_msg(Floats), queue_size=1)
+        # additional RGB sensor I configured
+        self._pub_bc_sensor = rospy.Publisher(
+            "~bc_sensor", numpy_msg(Floats), queue_size=1
+        )
 
         self._pub_depth_and_pointgoal = rospy.Publisher(
             "depth_and_pointgoal", numpy_msg(Floats), queue_size=1
