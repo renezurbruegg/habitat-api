@@ -5,24 +5,23 @@
 # LICENSE file in the root directory of this source tree.
 
 import habitat
-import cv2
+
 
 def example():
-    env = habitat.Env(config=habitat.get_config("configs/tasks/pointnav_rgbd_gibson.yaml"))
+    # Note: Use with for the example testing, doesn't need to be like this on the README
 
-    print("Environment creation successful")
-    observations = env.reset()
+    with habitat.Env(
+        config=habitat.get_config("configs/tasks/pointnav.yaml")
+    ) as env:
+        print("Environment creation successful")
+        observations = env.reset()  # noqa: F841
 
-    print("Agent stepping around inside environment.")
-    cv2.imshow("bc_sensor", observations['bc_sensor'])
-    cv2.waitKey()
-    count_steps = 0
-    while not env.episode_over:
-        observations = env.step(0)
-        print( env._sim._sim.agents[0].scene_node.absolute_position())
-        print(env._sim._sim.agents[0].state.position)
-        count_steps += 1
-    print("Episode finished after {} steps.".format(count_steps))
+        print("Agent stepping around inside environment.")
+        count_steps = 0
+        while not env.episode_over:
+            observations = env.step(env.action_space.sample())  # noqa: F841
+            count_steps += 1
+        print("Episode finished after {} steps.".format(count_steps))
 
 
 if __name__ == "__main__":
